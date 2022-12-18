@@ -1,6 +1,6 @@
 # Hypercore Rehoster
 
-Help host hypercores.
+Help host the hypercores of your choice.
 
 Warning: still in alfa
 
