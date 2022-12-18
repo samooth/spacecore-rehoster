@@ -25,7 +25,7 @@ const swarm = new Hyperswarm()
 const rehoster = await Rehoster.initFrom({ dbConnectionStr, corestore, swarm})
 
 const someCore = corestore.get({name: 'mycore'})
-// NOTE: Core need not be of some corestore
+// NOTE: Core need not be of same corestore
 await someCore.ready()
 
 // Accepts both buffer and hex keys
