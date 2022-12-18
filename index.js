@@ -1,4 +1,8 @@
 const { asHex, getDiscoveryKey } = require('hexkey-utils')
+const HyperInterface = require('hyperpubee-hyper-interface')
+const SwarmInterface = require('hyperpubee-swarm-interface')
+
+const DbInterface = require('./lib/db-interface')
 
 const OPTS_TO_AUTO_UPDATE = { sparse: false }
 Object.freeze(OPTS_TO_AUTO_UPDATE)
@@ -8,6 +12,10 @@ class Rehoster {
     this.dbInterface = dbInterface
     this.hypercoreInterface = hypercoreInterface
     this.swarmInterface = swarmInterface
+  }
+
+  async ready () {
+    await this.syncWithDb()
   }
 
   async syncWithDb () {
@@ -31,8 +39,20 @@ class Rehoster {
   }
 
   async addCore (key) {
-    this.dbInterface.addHexKey(asHex(key))
+    try {
+      this.dbInterface.addHexKey(asHex(key))
+    } catch (error) {
+      if (error.message !== 'UNIQUE constraint failed: core.hexKey') {
+        // already added is fine
+        throw error
+      }
+    }
+
     await this.syncWithDb()
+  }
+
+  get servedDiscoveryKeys () {
+    return this.swarmInterface.servedDiscoveryKeys
   }
 
   async close () {
@@ -40,6 +60,20 @@ class Rehoster {
       this.hypercoreInterface.close(),
       this.swarmInterface.close()
     ])
+  }
+
+  static async initFrom ({ dbConnectionStr, corestore, swarm }) {
+    const dbInterface = DbInterface.initFromConnectionStr(dbConnectionStr)
+
+    await corestore.ready()
+    const swarmInterface = new SwarmInterface(swarm, corestore)
+
+    const hypercoreInterface = new HyperInterface(corestore)
+    await hypercoreInterface.ready()
+
+    const res = new Rehoster({ dbInterface, hypercoreInterface, swarmInterface })
+    await res.ready()
+    return res
   }
 }
 

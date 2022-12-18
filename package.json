@@ -4,8 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "standard && nyc --reporter=text mocha --timeout 10000"
+    "test": "standard && nyc --reporter=text mocha --parallel --timeout 10000"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@gitlab.com/HDegroote/hypercore-rehoster.git"
+  },
+
   "author": "H. Degroote",
   "license": "MIT",
   "devDependencies": {

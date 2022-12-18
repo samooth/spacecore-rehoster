@@ -1,25 +1,28 @@
 const { expect } = require('chai')
+const ram = require('random-access-memory')
 
 const Rehoster = require('..')
 const { getDiscoveryKey } = require('hexkey-utils')
 
-const { dbInterfaceFactory, testnetFactory, hyperInterfaceFactory } = require('./fixtures')
+const { testnetFactory } = require('./fixtures')
+const Corestore = require('corestore')
 
 describe('Rehoster tests', function () {
-  let dbInterface, testnet, hypercoreInterface, hypercoreInterface2
+  let testnet
   let rehoster
 
   this.beforeEach(async function () {
-    dbInterface = dbInterfaceFactory()
-    hypercoreInterface = await hyperInterfaceFactory()
-    hypercoreInterface2 = await hyperInterfaceFactory()
+    const corestore = new Corestore(ram)
+    const corestore2 = new Corestore(ram)
 
     testnet = await testnetFactory(
-      hypercoreInterface.corestore,
-      hypercoreInterface2.corestore
+      corestore,
+      corestore2
     )
 
-    rehoster = new Rehoster({ dbInterface, hypercoreInterface, swarmInterface: testnet.swarmInterface1 })
+    rehoster = await Rehoster.initFrom(
+      { dbConnectionStr: ':memory:', corestore, swarm: testnet.swarmInterface1.swarm }
+    )
   })
 
   this.afterEach(async function () {
@@ -29,25 +32,34 @@ describe('Rehoster tests', function () {
   it('Can sync an empty db', async function () {
     await rehoster.syncWithDb()
     expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(0)
-    expect(rehoster.swarmInterface.servedDiscoveryKeys.length).to.equal(0)
+    expect(rehoster.servedDiscoveryKeys.length).to.equal(0)
   })
 
   it('Can add a core', async function () {
-    const core = await hypercoreInterface.createHypercore('my core')
+    const core = await rehoster.hypercoreInterface.createHypercore('my core')
     await rehoster.addCore(core.key)
 
     expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(1)
-    expect(rehoster.swarmInterface.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
+    expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
+  })
+
+  it('Does nothing if adding a key a second time', async function () {
+    const core = await rehoster.hypercoreInterface.createHypercore('my core')
+    await rehoster.addCore(core.key)
+    await rehoster.addCore(core.key)
+
+    expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(1)
+    expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
   })
 
   it('Can add multiple cores', async function () {
-    const core = await hypercoreInterface.createHypercore('my core')
+    const core = await rehoster.hypercoreInterface.createHypercore('my core')
     await rehoster.addCore(core.key)
-    const core2 = await hypercoreInterface.createHypercore('my core2')
+    const core2 = await rehoster.hypercoreInterface.createHypercore('my core2')
     await rehoster.addCore(core2.key)
 
     expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(2)
-    expect(rehoster.swarmInterface.servedDiscoveryKeys).to.deep.equal([
+    expect(rehoster.servedDiscoveryKeys).to.deep.equal([
       getDiscoveryKey(core.key),
       getDiscoveryKey(core2.key)
     ])
