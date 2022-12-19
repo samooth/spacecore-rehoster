@@ -1,4 +1,5 @@
 const { expect } = require('chai')
+const sinon = require('sinon')
 const ram = require('random-access-memory')
 
 const Rehoster = require('..')
@@ -52,7 +53,9 @@ describe('Rehoster tests', function () {
     expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
   })
 
-  it('Can add multiple cores', async function () {
+  it('Can add multiple cores with addCore', async function () {
+    const spy = sinon.spy(rehoster, 'syncWithDb')
+
     const core = await rehoster.hypercoreInterface.createHypercore('my core')
     await rehoster.addCore(core.key)
     const core2 = await rehoster.hypercoreInterface.createHypercore('my core2')
@@ -63,5 +66,22 @@ describe('Rehoster tests', function () {
       getDiscoveryKey(core.key),
       getDiscoveryKey(core2.key)
     ])
+    expect(spy.callCount).to.equal(2)
+  })
+
+  it('Can add multiple cores with addCores', async function () {
+    const spy = sinon.spy(rehoster, 'syncWithDb')
+
+    const core = await rehoster.hypercoreInterface.createHypercore('my core')
+    const core2 = await rehoster.hypercoreInterface.createHypercore('my core2')
+
+    await rehoster.addCores([core.key, core2.key])
+
+    expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(2)
+    expect(rehoster.servedDiscoveryKeys).to.deep.equal([
+      getDiscoveryKey(core.key),
+      getDiscoveryKey(core2.key)
+    ])
+    expect(spy.callCount).to.equal(1)
   })
 })
