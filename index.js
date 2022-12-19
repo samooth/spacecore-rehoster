@@ -51,6 +51,22 @@ class Rehoster {
     await this.syncWithDb()
   }
 
+  async addCores (keys) {
+    for (const key of keys) {
+      try {
+        this.dbInterface.addHexKey(asHex(key))
+      } catch (error) {
+        if (error.message !== 'UNIQUE constraint failed: core.hexKey') {
+          // already added is fine--else:
+          await this.syncWithDb()
+          throw error
+        }
+      }
+    }
+
+    await this.syncWithDb()
+  }
+
   get servedDiscoveryKeys () {
     return this.swarmInterface.servedDiscoveryKeys
   }
