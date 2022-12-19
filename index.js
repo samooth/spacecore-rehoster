@@ -46,9 +46,11 @@ class Rehoster {
         // already added is fine
         throw error
       }
+      return false
     }
 
     await this.syncWithDb()
+    return true
   }
 
   async addCores (keys) {

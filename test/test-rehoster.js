@@ -38,17 +38,19 @@ describe('Rehoster tests', function () {
 
   it('Can add a core', async function () {
     const core = await rehoster.hypercoreInterface.createHypercore('my core')
-    await rehoster.addCore(core.key)
+    const added = await rehoster.addCore(core.key)
 
+    expect(added).to.equal(true)
     expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(1)
     expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
   })
 
-  it('Does nothing if adding a key a second time', async function () {
+  it('Does not error if adding a key a second time, but returns false', async function () {
     const core = await rehoster.hypercoreInterface.createHypercore('my core')
     await rehoster.addCore(core.key)
-    await rehoster.addCore(core.key)
+    const added = await rehoster.addCore(core.key)
 
+    expect(added).to.equal(false)
     expect(rehoster.hypercoreInterface.corestore.cores.size).to.equal(1)
     expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(core.key)])
   })
