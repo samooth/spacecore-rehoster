@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^8.0.1",
-    "hexkey-utils": "^1.0.0",
+    "hexkey-utils": "^1.0.1",
     "hypercore-crypto": "^3.3.0",
     "hyperpubee-hyper-interface": "~0.1.3",
     "hyperpubee-swarm-interface": "~0.2.1"

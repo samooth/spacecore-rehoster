@@ -28,7 +28,7 @@ describe('Db-interface tests', function () {
     const badKey = key.slice(0, 63)
     expect(() =>
       dbInterface.addHexKey(badKey)
-    ).to.throw(`Invalid hexKey: ${badKey}--should match /[0-9a-f]{64,64}`)
+    ).to.throw(`Invalid key: ${badKey}`)
   })
 
   it('Can get the keys', function () {
