@@ -67,7 +67,7 @@ export default class Rehoster {
     ])
   }
 
-  static async initFrom ({ beeName, corestore, swarm }) {
+  static async initFrom ({ beeName = 'rehoster-keyset', corestore, swarm }) {
     await corestore.ready()
     const swarmInterface = new SwarmInterface(swarm, corestore)
 

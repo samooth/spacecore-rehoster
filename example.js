@@ -3,14 +3,13 @@ import Hyperswarm from 'hyperswarm'
 import Rehoster from './index.js'
 import ram from 'random-access-memory'
 
-const corestoreLoc = ram // './my-store' for on-file
-const beeName = 'rehoster-keys-db' // name in corestore
+const corestoreLoc = ram // './my-store' for persistence on the specified file
 
 const corestore = new Corestore(corestoreLoc)
 const swarm = new Hyperswarm()
 
 // Can take a while if existing db, as all cores will be announced on the swarm
-const rehoster = await Rehoster.initFrom({ beeName, corestore, swarm })
+const rehoster = await Rehoster.initFrom({ corestore, swarm })
 
 const someCore = corestore.get({ name: 'mycore' })
 // NOTE: Core need not be of same corestore
