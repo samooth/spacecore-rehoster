@@ -15,10 +15,13 @@ export default class Rehoster {
     this.dbInterface = dbInterface
     this.hypercoreInterface = hypercoreInterface
     this.swarmInterface = swarmInterface
+    this._firstSyncDone = false
+
+    this.syncWithDb()
   }
 
   async ready () {
-    await this.syncWithDb()
+    if (!this._firstSyncDone) await this.syncWithDb()
   }
 
   async syncWithDb () {
@@ -39,6 +42,7 @@ export default class Rehoster {
       this.hypercoreInterface.readHypercore(key, OPTS_TO_AUTO_UPDATE)
     )
     await Promise.all(readPromises)
+    this._firstSyncDone = true
   }
 
   async addCore (key, { doSync = true } = {}) {
@@ -79,12 +83,10 @@ export default class Rehoster {
     await bee.ready()
     const dbInterface = new DbInterface(bee)
 
-    const res = new Rehoster({
+    return new Rehoster({
       dbInterface,
       hypercoreInterface,
       swarmInterface
     })
-    await res.ready()
-    return res
   }
 }
