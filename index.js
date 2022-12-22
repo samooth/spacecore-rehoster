@@ -1,13 +1,16 @@
-const { asHex, getDiscoveryKey } = require('hexkey-utils')
-const HyperInterface = require('hyperpubee-hyper-interface')
-const SwarmInterface = require('hyperpubee-swarm-interface')
+import { getDiscoveryKey } from 'hexkey-utils'
+import HyperInterface from 'hyperpubee-hyper-interface'
+import SwarmInterface from 'hyperpubee-swarm-interface'
+import Hyperbee from 'hyperbee'
+import stream from 'streamx'
+import cloneable from 'cloneable-readable'
 
-const DbInterface = require('./lib/db-interface')
+import DbInterface from './lib/db-interface.js'
 
 const OPTS_TO_AUTO_UPDATE = { sparse: false }
 Object.freeze(OPTS_TO_AUTO_UPDATE)
 
-class Rehoster {
+export default class Rehoster {
   constructor ({ dbInterface, hypercoreInterface, swarmInterface }) {
     this.dbInterface = dbInterface
     this.hypercoreInterface = hypercoreInterface
@@ -19,54 +22,38 @@ class Rehoster {
   }
 
   async syncWithDb () {
-    const desiredKeys = [...this.dbInterface.getHexKeys()]
-    const discToPubKeyMap = new Map(desiredKeys.map(
-      (key) => [getDiscoveryKey(key), key]
-    ))
+    const keyStream = cloneable(this.dbInterface.getKeyStream())
 
-    const existingDiscoveryKeys = this.swarmInterface.servedDiscoveryKeys
-    const discoveryKeysToAdd = desiredKeys
-      .map((key) => getDiscoveryKey(key))
-      .filter((discKey) => !existingDiscoveryKeys.includes(discKey))
+    const keys = []
+    keyStream.clone().on('data', (key) => keys.push(key))
 
-    await this.swarmInterface.serveCores(discoveryKeysToAdd)
-    const readPromises = discoveryKeysToAdd.map(
-      (discKey) => this.hypercoreInterface.readHypercore(
-        discToPubKeyMap.get(discKey), OPTS_TO_AUTO_UPDATE
-      )
+    const toDiscoveryKey = new stream.Transform(
+      { transform: (key, cb) => cb(null, key ? getDiscoveryKey(key) : null) }
+    )
+    const discKeyStream = stream.pipeline([keyStream, toDiscoveryKey])
+
+    // Serve all before reading
+    await this.swarmInterface.serveCores(discKeyStream)
+
+    const readPromises = keys.map((key) =>
+      this.hypercoreInterface.readHypercore(key, OPTS_TO_AUTO_UPDATE)
     )
     await Promise.all(readPromises)
   }
 
-  async addCore (key) {
-    try {
-      this.dbInterface.addHexKey(asHex(key))
-    } catch (error) {
-      if (error.message !== 'UNIQUE constraint failed: core.hexKey') {
-        // already added is fine
-        throw error
-      }
-      return false
-    }
-
-    await this.syncWithDb()
-    return true
+  async addCore (key, { doSync = true } = {}) {
+    await this.dbInterface.addKey(key)
+    if (doSync) await this.syncWithDb()
   }
 
   async addCores (keys) {
-    for (const key of keys) {
-      try {
-        this.dbInterface.addHexKey(asHex(key))
-      } catch (error) {
-        if (error.message !== 'UNIQUE constraint failed: core.hexKey') {
-          // already added is fine--else:
-          await this.syncWithDb()
-          throw error
-        }
-      }
+    try {
+      await Promise.all(
+        keys.map((key) => this.addCore(key, { doSync: false }))
+      )
+    } finally {
+      await this.syncWithDb()
     }
-
-    await this.syncWithDb()
   }
 
   get servedDiscoveryKeys () {
@@ -80,19 +67,24 @@ class Rehoster {
     ])
   }
 
-  static async initFrom ({ dbConnectionStr, corestore, swarm }) {
-    const dbInterface = DbInterface.initFromConnectionStr(dbConnectionStr)
-
+  static async initFrom ({ beeName, corestore, swarm }) {
     await corestore.ready()
     const swarmInterface = new SwarmInterface(swarm, corestore)
 
     const hypercoreInterface = new HyperInterface(corestore)
     await hypercoreInterface.ready()
 
-    const res = new Rehoster({ dbInterface, hypercoreInterface, swarmInterface })
+    const core = await corestore.get({ name: beeName })
+    const bee = new Hyperbee(core, { keyEncoding: 'binary' })
+    await bee.ready()
+    const dbInterface = new DbInterface(bee)
+
+    const res = new Rehoster({
+      dbInterface,
+      hypercoreInterface,
+      swarmInterface
+    })
     await res.ready()
     return res
   }
 }
-
-module.exports = Rehoster
