@@ -9,11 +9,8 @@ const corestore = new Corestore(corestoreLoc)
 const swarm = new Hyperswarm()
 
 // Can take a while if existing db, as all cores will be announced on the swarm
+// (if you don't want to sync on start, set doSync=false)
 const rehoster = await Rehoster.initFrom({ corestore, swarm })
-
-// Ready means it is serving all cores initially in the db.
-// No need to wait on it before adding new cores
-await rehoster.ready()
 
 const someCore = corestore.get({ name: 'mycore' })
 // NOTE: Core need not be of same corestore

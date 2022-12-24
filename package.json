@@ -43,9 +43,8 @@
     ]
   },
   "dependencies": {
-    "cloneable-readable": "^3.0.0",
     "hexkey-utils": "^1.0.1",
-    "hyperpubee-hyper-interface": "~0.1.3",
+    "hyperpubee-hyper-interface": "~0.1.4",
     "hyperpubee-swarm-interface": "~0.3.0"
   }
 }
