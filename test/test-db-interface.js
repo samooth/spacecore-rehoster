@@ -18,7 +18,7 @@ describe('Db-interface tests', function () {
     await dbInterface.addKey(key)
 
     const hexKeys = await dbInterface.getHexKeys()
-    expect(hexKeys).to.deep.equal(new Set([key]))
+    expect(hexKeys).to.deep.equal([key])
   })
 
   it('throws when adding invalid key', async function () {
@@ -37,7 +37,7 @@ describe('Db-interface tests', function () {
     await dbInterface.addKey(key3)
 
     const keys = await dbInterface.getHexKeys()
-    expect(keys).to.deep.equal(new Set([key, key2, key3]))
+    expect(new Set(keys)).to.deep.equal(new Set([key, key2, key3]))
   })
 
   it('Throws when initing with bee with incorrect encoding', async function () {

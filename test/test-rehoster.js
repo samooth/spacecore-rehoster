@@ -98,7 +98,8 @@ describe('Rehoster tests', function () {
     expect(spy.callCount).to.equal(1)
   })
 
-//  it('Runs the example without crashing (takes~30s)', async function () {
-//     await util.promisify(execFile)('node', ['./example.js'])
-//  })
+  // integration test, which connects with swarm
+  // it('Runs the example without crashing (takes~30s)', async function () {
+  //   await util.promisify(execFile)('node', ['./example.js'])
+  // })
 })

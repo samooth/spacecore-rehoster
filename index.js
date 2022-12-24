@@ -2,8 +2,6 @@ import { getDiscoveryKey } from 'hexkey-utils'
 import HyperInterface from 'hyperpubee-hyper-interface'
 import SwarmInterface from 'hyperpubee-swarm-interface'
 import Hyperbee from 'hyperbee'
-import stream from 'streamx'
-import cloneable from 'cloneable-readable'
 
 import DbInterface from './lib/db-interface.js'
 
@@ -15,34 +13,15 @@ export default class Rehoster {
     this.dbInterface = dbInterface
     this.hypercoreInterface = hypercoreInterface
     this.swarmInterface = swarmInterface
-    this._firstSyncDone = false
-
-    this.syncWithDb()
-  }
-
-  async ready () {
-    if (!this._firstSyncDone) await this.syncWithDb()
   }
 
   async syncWithDb () {
-    const keyStream = cloneable(this.dbInterface.getKeyStream())
-
-    const keys = []
-    keyStream.clone().on('data', (key) => keys.push(key))
-
-    const toDiscoveryKey = new stream.Transform(
-      { transform: (key, cb) => cb(null, key ? getDiscoveryKey(key) : null) }
-    )
-    const discKeyStream = stream.pipeline([keyStream, toDiscoveryKey])
+    const keys = await this.dbInterface.getHexKeys()
+    const discKeys = keys.map((key) => getDiscoveryKey(key))
 
     // Serve all before reading
-    await this.swarmInterface.serveCores(discKeyStream)
-
-    const readPromises = keys.map((key) =>
-      this.hypercoreInterface.readHypercore(key, OPTS_TO_AUTO_UPDATE)
-    )
-    await Promise.all(readPromises)
-    this._firstSyncDone = true
+    await this.swarmInterface.serveCores(discKeys)
+    await this.hypercoreInterface.readHypercores(keys, OPTS_TO_AUTO_UPDATE)
   }
 
   async addCore (key, { doSync = true } = {}) {
@@ -50,13 +29,13 @@ export default class Rehoster {
     if (doSync) await this.syncWithDb()
   }
 
-  async addCores (keys) {
+  async addCores (keys, { doSync = true } = {}) {
     try {
       await Promise.all(
         keys.map((key) => this.addCore(key, { doSync: false }))
       )
     } finally {
-      await this.syncWithDb()
+      if (doSync) await this.syncWithDb()
     }
   }
 
@@ -71,7 +50,9 @@ export default class Rehoster {
     ])
   }
 
-  static async initFrom ({ beeName = 'rehoster-keyset', corestore, swarm }) {
+  static async initFrom (
+    { beeName = 'rehoster-keyset', corestore, swarm, doSync = true }
+  ) {
     await corestore.ready()
     const swarmInterface = new SwarmInterface(swarm, corestore)
 
@@ -83,10 +64,13 @@ export default class Rehoster {
     await bee.ready()
     const dbInterface = new DbInterface(bee)
 
-    return new Rehoster({
+    const res = new Rehoster({
       dbInterface,
       hypercoreInterface,
       swarmInterface
     })
+
+    if (doSync) await res.syncWithDb()
+    return res
   }
 }
