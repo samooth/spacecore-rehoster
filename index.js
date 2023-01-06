@@ -3,7 +3,9 @@ import HyperInterface from 'hyperpubee-hyper-interface'
 import SwarmInterface from 'hyperpubee-swarm-interface'
 import Hyperbee from 'hyperbee'
 
+import RehosterNode from './lib/rehoster-node.js'
 import DbInterface from './lib/db-interface.js'
+import { DiGraph } from 'dcent-digraph'
 
 const OPTS_TO_AUTO_UPDATE = { sparse: false }
 Object.freeze(OPTS_TO_AUTO_UPDATE)
@@ -15,13 +17,31 @@ export default class Rehoster {
     this.swarmInterface = swarmInterface
   }
 
-  async syncWithDb () {
-    const keys = await this.dbInterface.getHexKeys()
-    const discKeys = keys.map((key) => getDiscoveryKey(key))
+  get ownKey () {
+    return this.dbInterface.bee.feed.key
+  }
 
-    // Serve all before reading
+  get rootNode () {
+    return new RehosterNode({
+      pubKey: this.ownKey,
+      hyperInterface: this.hypercoreInterface,
+      swarmInterface: this.swarmInterface
+    })
+  }
+
+  async syncWithDb () {
+    const diGraph = new DiGraph(this.rootNode)
+
+    const keys = []
+    const discKeys = []
+    for await (const node of diGraph.yieldAllNodesOnce()) {
+      keys.push(node.pubKey)
+      discKeys.push(getDiscoveryKey(node.pubKey))
+    }
+
+    // Serve/request all before reading
     await this.swarmInterface.serveCores(discKeys)
-    await this.hypercoreInterface.readHypercores(keys, OPTS_TO_AUTO_UPDATE)
+    await this.hypercoreInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
   }
 
   async addCore (key, { doSync = true } = {}) {
@@ -44,14 +64,12 @@ export default class Rehoster {
   }
 
   async close () {
-    await Promise.all([
-      this.hypercoreInterface.close(),
-      this.swarmInterface.close()
-    ])
+    await this.swarmInterface.close()
+    await this.hypercoreInterface.close()
   }
 
   static async initFrom (
-    { beeName = 'rehoster-keyset', corestore, swarm, doSync = true }
+    { beeName = 'rehoster-keyset', corestore, swarm, doSync = true, RehosterClass = Rehoster }
   ) {
     await corestore.ready()
     const swarmInterface = new SwarmInterface(swarm, corestore)
@@ -60,11 +78,11 @@ export default class Rehoster {
     await hypercoreInterface.ready()
 
     const core = await corestore.get({ name: beeName })
-    const bee = new Hyperbee(core, { keyEncoding: 'binary' })
+    const bee = new Hyperbee(core)
     await bee.ready()
     const dbInterface = new DbInterface(bee)
 
-    const res = new Rehoster({
+    const res = new RehosterClass({
       dbInterface,
       hypercoreInterface,
       swarmInterface
