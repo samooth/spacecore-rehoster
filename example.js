@@ -19,7 +19,31 @@ await someCore.ready()
 // Accepts both buffer and hex keys
 await rehoster.addCore(someCore.key)
 
+console.log('rehoster served discovery keys:')
 console.log(rehoster.servedDiscoveryKeys)
-// example output: [ '12e7ddf4468c897908cea086c90a309d7794ac04f7fd3d177eb9d098de74f1a2' ]
+// example output: [
+//  '8d35aae54732aafc672dd168eb8c303f9dcea5ef3d3275897f61fe8779e1c882',
+//  '4b4742caafa04b36428a5fd94f1f237fbb5ed162aaa56cb018b7d2ece58dfc3c'
+// ]
+// Note: a rehoster always serves itself, hence the 2 keys
 
-await rehoster.close()
+console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
+const corestore2 = new Corestore(corestoreLoc)
+const swarm2 = new Hyperswarm()
+
+const rerehoster = await Rehoster.initFrom({ corestore: corestore2, swarm: swarm2 })
+await rerehoster.addCore(rehoster.ownKey)
+console.log('rerehoster served discovery keys:')
+console.log(rerehoster.servedDiscoveryKeys) // 3 keys: its own, the rehoster's and what that one hosts
+
+console.log('\nThe rehoster downloads any new blocks added to the hypercore')
+someCore.on('append', () => console.log('Appended to local core--new length:', someCore.length))
+
+const readcore = corestore2.get({ key: someCore.key })
+await readcore.ready()
+readcore.on('append', async () => {
+  console.log('Change reflected in remote core--new length:', readcore.length)
+  await Promise.all([rehoster.close(), rerehoster.close()])
+})
+
+await someCore.append('A change')
