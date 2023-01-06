@@ -1,10 +1,11 @@
 # Hypercore Rehoster
 
 Help host the hypercores of your choice.
+For a hypercore containing a hyperdrive, both underlying cores will be served.
 
 Warning: still in alfa
 
-The rehoster automatically pulls updates from all the cores it hosts.
+The rehoster automatically keeps the cores it hosts up to date.
 
 The rehoster is recursive: if you rehost the key of another rehoster, you will automatically
 also rehost all the cores contained in that rehoster (and if those also contain rehoster keys, you will host their cores as well, recursively).

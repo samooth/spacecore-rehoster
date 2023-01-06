@@ -33,14 +33,20 @@ export default class Rehoster {
     const diGraph = new DiGraph(this.rootNode)
 
     const keys = []
-    const discKeys = []
+    const keysToAnnounce = []
+    const keysToRequest = []
     for await (const node of diGraph.yieldAllNodesOnce()) {
       keys.push(node.pubKey)
-      discKeys.push(getDiscoveryKey(node.pubKey))
+      const discKey = getDiscoveryKey(node.pubKey)
+      node.shouldAnnounce ? keysToAnnounce.push(discKey) : keysToRequest.push(discKey)
     }
 
     // Serve/request all before reading
-    await this.swarmInterface.serveCores(discKeys)
+    await Promise.all([
+      this.swarmInterface.serveCores(keysToAnnounce),
+      this.swarmInterface.requestCores(keysToRequest)
+    ])
+
     await this.hypercoreInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
   }
 
@@ -61,6 +67,10 @@ export default class Rehoster {
 
   get servedDiscoveryKeys () {
     return this.swarmInterface.servedDiscoveryKeys
+  }
+
+  get replicatedDiscoveryKeys () {
+    return this.swarmInterface.replicatedDiscoveryKeys
   }
 
   async close () {

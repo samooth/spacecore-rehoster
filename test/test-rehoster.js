@@ -2,8 +2,9 @@ import { expect } from 'chai'
 import { spy as _spy } from 'sinon'
 import ram from 'random-access-memory'
 
-import { getDiscoveryKey } from 'hexkey-utils'
+import { getDiscoveryKey, asHex } from 'hexkey-utils'
 import Corestore from 'corestore'
+import Hyperdrive from 'hyperdrive'
 
 import Rehoster from '../index.js'
 import { testnetFactory } from './fixtures.js'
@@ -176,6 +177,22 @@ describe('Rehoster tests', function () {
     await done.wait()
 
     expect(readCore.length).to.equal(2)
+  })
+
+  it('makes a hyperdrive contentKey available, but without announcing', async function () {
+    const drive = new Hyperdrive(corestore)
+    await drive.put('/file', 'something')
+    await rehoster.addCore(drive.key)
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey)
+    ])
+    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(drive.contentKey)
+    ])
   })
 
   // integration test, which connects with swarm
