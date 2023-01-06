@@ -23,9 +23,9 @@ export async function testnetFactory (corestore1, corestore2) {
   async function destroyTestnetFactory () {
     await Promise.all([
       swarmInterface2.close(),
-      swarmInterface1.close(),
-      testnet.destroy()
+      swarmInterface1.close()
     ])
+    await testnet.destroy()
   }
 
   return {
@@ -49,6 +49,6 @@ export async function hyperInterfaceFactory () {
 export async function dbInterfaceFactory (hyperInterface) {
   hyperInterface ??= await hyperInterfaceFactory()
 
-  const bee = await hyperInterface.createHyperbee(`${Math.random()}`, { keyEncoding: 'binary' })
+  const bee = await hyperInterface.createBee(`${Math.random()}`)
   return new DbInterface(bee)
 }

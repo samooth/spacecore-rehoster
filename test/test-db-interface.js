@@ -42,7 +42,7 @@ describe('Db-interface tests', function () {
 
   it('Throws when initing with bee with incorrect encoding', async function () {
     const hyperInterface = await hyperInterfaceFactory()
-    const bee = await hyperInterface.createHyperbee('bee', { keyEncoding: 'utf-8' })
+    const bee = await hyperInterface.createBee('bee', { keyEncoding: 'utf-8' })
     expect(() => new DbInterface(bee)).to.throw(
       'DbInterface must have default (binary) keyEncoding'
     )
