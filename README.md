@@ -5,6 +5,10 @@ For a hypercore containing a hyperdrive, both underlying cores will be served.
 
 Warning: still in alfa
 
+See [hypercore-rehost-server](https://gitlab.com/HDegroote/hypercore-rehost-server) for a server wrapping the rehoster, and [hypercore-rehost-cli](https://gitlab.com/HDegroote/hypercore-rehost-cli) for a CLI to interact with that server.
+
+## Description
+
 The rehoster automatically keeps the cores it hosts up to date.
 
 The rehoster is recursive: if you rehost the key of another rehoster, you will automatically
