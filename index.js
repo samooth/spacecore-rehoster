@@ -11,9 +11,9 @@ const OPTS_TO_AUTO_UPDATE = { sparse: false }
 Object.freeze(OPTS_TO_AUTO_UPDATE)
 
 export default class Rehoster {
-  constructor ({ dbInterface, hypercoreInterface, swarmInterface }) {
+  constructor ({ dbInterface, hyperInterface, swarmInterface }) {
     this.dbInterface = dbInterface
-    this.hypercoreInterface = hypercoreInterface
+    this.hyperInterface = hyperInterface
     this.swarmInterface = swarmInterface
   }
 
@@ -24,7 +24,7 @@ export default class Rehoster {
   get rootNode () {
     return new RehosterNode({
       pubKey: this.ownKey,
-      hyperInterface: this.hypercoreInterface,
+      hyperInterface: this.hyperInterface,
       swarmInterface: this.swarmInterface
     })
   }
@@ -47,7 +47,7 @@ export default class Rehoster {
       this.swarmInterface.requestCores(keysToRequest)
     ])
 
-    await this.hypercoreInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
+    await this.hyperInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
   }
 
   async addCore (key, { doSync = true } = {}) {
@@ -75,7 +75,7 @@ export default class Rehoster {
 
   async close () {
     await this.swarmInterface.close()
-    await this.hypercoreInterface.close()
+    await this.hyperInterface.close()
   }
 
   static async initFrom (
@@ -84,8 +84,8 @@ export default class Rehoster {
     await corestore.ready()
     const swarmInterface = new SwarmInterface(swarm, corestore)
 
-    const hypercoreInterface = new HyperInterface(corestore)
-    await hypercoreInterface.ready()
+    const hyperInterface = new HyperInterface(corestore)
+    await hyperInterface.ready()
 
     const core = await corestore.get({ name: beeName })
     const bee = new Hyperbee(core)
@@ -94,7 +94,7 @@ export default class Rehoster {
 
     const res = new RehosterClass({
       dbInterface,
-      hypercoreInterface,
+      hyperInterface,
       swarmInterface
     })
 
