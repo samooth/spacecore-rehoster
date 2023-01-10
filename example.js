@@ -41,9 +41,16 @@ someCore.on('append', () => console.log('Appended to local core--new length:', s
 
 const readcore = corestore2.get({ key: someCore.key })
 await readcore.ready()
-readcore.on('append', async () => {
-  console.log('Change reflected in remote core--new length:', readcore.length)
-  await Promise.all([rehoster.close(), rerehoster.close()])
-})
+readcore.on('append', onAppend)
 
 await someCore.append('A change')
+
+async function onAppend () {
+  console.log('Change reflected in remote core--new length:', readcore.length)
+
+  console.log('You can also remove a core from the rehoster:')
+  await rehoster.removeCore(someCore.key)
+  console.log(rehoster.servedDiscoveryKeys)
+
+  await Promise.all([rehoster.close(), rerehoster.close()])
+}
