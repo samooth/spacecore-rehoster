@@ -21,6 +21,22 @@ describe('Db-interface tests', function () {
     expect(hexKeys).to.deep.equal([key])
   })
 
+  it('Can remove a key from the db', async function () {
+    await dbInterface.addKey(key)
+    expect(await dbInterface.getHexKeys()).to.deep.equal([key])
+
+    await dbInterface.removeKey(key)
+    expect(await dbInterface.getHexKeys()).to.deep.equal([])
+  })
+
+  it('Does nothing when removing unknown key', async function () {
+    await dbInterface.addKey(key)
+    expect(await dbInterface.getHexKeys()).to.deep.equal([key])
+
+    await dbInterface.removeKey('bbb')
+    expect(await dbInterface.getHexKeys()).to.deep.equal([key])
+  })
+
   it('throws when adding invalid key', async function () {
     const badKey = key.slice(0, 63)
     await nodeAssert.rejects(

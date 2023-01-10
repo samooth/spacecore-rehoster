@@ -41,6 +41,17 @@ export default class Rehoster {
       node.shouldAnnounce ? keysToAnnounce.push(discKey) : keysToRequest.push(discKey)
     }
 
+    // We fully unserve all cores marked for deletion.
+    // If a core changed from keysToAnnounce to keysToRequest or vice versa,
+    // it will be added there in the add-step.
+    const keysToUnserve = this.servedDiscoveryKeys.filter(
+      (key) => !keysToAnnounce.includes(key)
+    )
+    const keysToUnrequest = this.replicatedDiscoveryKeys.filter(
+      (key) => !keysToRequest.includes(key)
+    )
+    await this.swarmInterface.unserveCores([...keysToUnserve, ...keysToUnrequest])
+
     // Serve/request all before reading
     await Promise.all([
       this.swarmInterface.serveCores(keysToAnnounce),
@@ -63,6 +74,11 @@ export default class Rehoster {
     } finally {
       if (doSync) await this.syncWithDb()
     }
+  }
+
+  async removeCore (key, { doSync = true } = {}) {
+    await this.dbInterface.removeKey(key)
+    if (doSync) await this.syncWithDb()
   }
 
   get servedDiscoveryKeys () {
