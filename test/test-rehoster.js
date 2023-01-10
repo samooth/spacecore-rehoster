@@ -221,6 +221,85 @@ describe('Rehoster tests', function () {
     expect(entry).to.eq('offline entry')
   })
 
+  it('Stops swarming the 2 drive cores if no longer in the db on sync', async function () {
+    const drive = new Hyperdrive(corestore)
+    await drive.put('/file', 'something')
+    const core = await rehoster.hyperInterface.createCore('core')
+    await rehoster.addCores([drive.key, core.key])
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key)
+    ])
+    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(drive.contentKey),
+      getDiscoveryKey(core.key)
+    ])
+
+    await rehoster.removeCore(drive.key)
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key)
+    ])
+    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key)
+    ])
+  })
+
+  it('Does not delete keys which change from requested to served', async function () {
+    const drive = new Hyperdrive(corestore)
+    await drive.put('/file', 'something')
+    const core = await rehoster.hyperInterface.createCore('core')
+    await rehoster.addCores([drive.key, core.key])
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key)
+    ])
+    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
+      asHex(drive.discoveryKey),
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(drive.contentKey),
+      getDiscoveryKey(core.key)
+    ])
+
+    // Rm drive's main key, but then explicitly host its content key
+    await rehoster.removeCore(drive.key, { sync: false })
+    await rehoster.addCore(drive.contentKey)
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key),
+      getDiscoveryKey(drive.contentKey)
+    ])
+    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(rehoster.ownKey),
+      getDiscoveryKey(core.key),
+      getDiscoveryKey(drive.contentKey)
+    ])
+  })
+
+  it('Can remove a core', async function () {
+    const core = await rehoster.hyperInterface.createCore('my core')
+    await rehoster.addCore(core.key)
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(core.key),
+      getDiscoveryKey(rehoster.ownKey)
+    ])
+    expect((await rehoster.dbInterface.getHexKeys()).length).to.eq(1)
+
+    await rehoster.removeCore(core.key)
+    expect((await rehoster.dbInterface.getHexKeys()).length).to.eq(0)
+    // Stopped announcing it too
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
+      getDiscoveryKey(rehoster.ownKey)
+    ])
+  })
   // integration test, which connects with swarm
   // it('Runs the example without crashing (takes~30s)', async function () {
   //   await util.promisify(execFile)('node', ['./example.js'])
