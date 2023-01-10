@@ -19,6 +19,11 @@ Rehosters can host one other, in which case they will host the union of all thei
 A Rehoster uses a corestore to store the hypercores on disk.
 
 The db (hyperbee) containing the hosted hypercores is also stored in the corestore.
+
+# Install
+
+`npm i hypercore-rehoster`
+
 ## Usage
 
 See [example.js](example.js).
