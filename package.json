@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "dcent-digraph": "~0.1.1",
-    "hexkey-utils": "^1.1.0",
+    "hexkey-utils": "^1.2.0",
     "hyperbee": "^2.3.0",
     "hyperpubee-hyper-interface": "~0.2.0",
     "hyperpubee-swarm-interface": "~0.4.1",
