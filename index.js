@@ -48,15 +48,14 @@ export default class Rehoster {
       (key) => !keysToAnnounce.includes(key)
     )
     const keysToUnrequest = this.replicatedDiscoveryKeys.filter(
-      (key) => !keysToRequest.includes(key)
+      (key) => !keysToRequest.includes(key) && !keysToAnnounce.includes(key)
     )
+
     await this.swarmInterface.unserveCores([...keysToUnserve, ...keysToUnrequest])
 
     // Serve/request all before reading
-    await Promise.all([
-      this.swarmInterface.serveCores(keysToAnnounce),
-      this.swarmInterface.requestCores(keysToRequest)
-    ])
+    await this.swarmInterface.serveCores(keysToAnnounce)
+    await this.swarmInterface.requestCores(keysToRequest)
 
     await this.hyperInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
   }
