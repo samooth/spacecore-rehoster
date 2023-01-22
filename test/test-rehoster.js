@@ -368,5 +368,13 @@ describe('Rehoster tests', function () {
         getDiscoveryKey(superRehoster.ownKey)
       ])
     })
+
+    it('Does not recurse eternally', async function () {
+      // Note: if this test fails it runs forever in the background, so test doesn't finish
+      await rehoster.add(rehoster.ownKey)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(rehoster.swarmInterface._servedCounters.get(getDiscoveryKey(rehoster.ownKey))).to.equal(1)
+    })
   })
 })
