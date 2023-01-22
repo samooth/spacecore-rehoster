@@ -107,8 +107,9 @@ describe('Rehoster tests', function () {
       detectedInvalidKey = invalidKey
     })
 
+    const txt = 'Not a hypercore key'
     await rehoster.add(core.key)
-    await rehoster.dbInterface.bee.put('Not a hypercore key')
+    await rehoster.dbInterface.bee.put(txt)
 
     await new Promise((resolve) => setTimeout(resolve, 1))
 
@@ -117,6 +118,13 @@ describe('Rehoster tests', function () {
     )
     expect(detectedInvalidKey.toString()).to.deep.equal('Not a hypercore key')
     expect(detectedRehosterKey).to.deep.equal(asBuffer(rehoster.ownKey))
+
+    // Sanity check: later deleting the key doesn't cause issues
+    await rehoster.dbInterface.bee.del(txt)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
+      [getDiscoveryKey(rehoster.ownKey), getDiscoveryKey(core.key)]
+    )
   })
 
   it('Can host a rehoster with bee on another corestore/swarm', async function () {
