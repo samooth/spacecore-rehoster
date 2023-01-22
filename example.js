@@ -1,23 +1,17 @@
 import Corestore from 'corestore'
-import Hyperswarm from 'hyperswarm'
 import Rehoster from './index.js'
 import ram from 'random-access-memory'
 
 const corestoreLoc = ram // './my-store' for persistence on the specified file
 
 const corestore = new Corestore(corestoreLoc)
-const swarm = new Hyperswarm()
-
-// Can take a while if existing db, as all cores will be announced on the swarm
-// (if you don't want to sync on start, set doSync=false)
-const rehoster = await Rehoster.initFrom({ corestore, swarm })
+const rehoster = await Rehoster.initFrom({ corestore })
 
 const someCore = corestore.get({ name: 'mycore' })
-// NOTE: Core need not be of same corestore
+// NOTE: the core-keys you add need not be of same corestore
 await someCore.ready()
 
-// Accepts both buffer and hex keys
-await rehoster.addCore(someCore.key)
+await rehoster.addCore(someCore.key) // Accepts both buffer and hex keys
 
 console.log('rehoster served discovery keys:')
 console.log(rehoster.servedDiscoveryKeys)
@@ -28,11 +22,22 @@ console.log(rehoster.servedDiscoveryKeys)
 // Note: a rehoster always serves itself, hence the 2 keys
 
 console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
-const corestore2 = new Corestore(corestoreLoc)
-const swarm2 = new Hyperswarm()
 
-const rerehoster = await Rehoster.initFrom({ corestore: corestore2, swarm: swarm2 })
+const corestore2 = new Corestore(ram)
+const rerehoster = await Rehoster.initFrom({ corestore: corestore2 })
+
+// This ensures the other rehoster already flushed its topics to the swarm
+// In practice you don't need to worry about this, it just helps solve a race condition
+// (if swarm2 starts looking before swarm1 fully published its topics, it can miss them
+// and will retry only after quite a while)
+await rehoster.swarmInterface.swarm.flush()
+
 await rerehoster.addCore(rehoster.ownKey)
+
+// Connecting and updating runs in the background, so we need to give some time
+// (add more time if the change doesn't propagate in time)
+await new Promise((resolve) => setTimeout(resolve, 2000))
+
 console.log('rerehoster served discovery keys:')
 console.log(rerehoster.servedDiscoveryKeys) // 3 keys: its own, the rehoster's and what that one hosts
 
@@ -48,9 +53,12 @@ await someCore.append('A change')
 async function onAppend () {
   console.log('Change reflected in remote core--new length:', readcore.length)
 
-  console.log('You can also remove a core from the rehoster:')
+  console.log('\nYou can also remove a core from the rehoster')
   await rehoster.removeCore(someCore.key)
-  console.log(rehoster.servedDiscoveryKeys)
+
+  await new Promise((resolve) => setTimeout(resolve, 3000)) // Give some time to update
+  console.log('rehoster:', rehoster.servedDiscoveryKeys) // Should only be 1
+  console.log('rerehoster:', rerehoster.servedDiscoveryKeys) // Should only be 2
 
   await Promise.all([rehoster.close(), rerehoster.close()])
 }

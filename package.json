@@ -5,7 +5,7 @@
   "description": "Help keep the hypercores of your choice available",
   "main": "index.js",
   "scripts": {
-    "test": "standard && nyc --reporter=text mocha"
+    "test": "standard && c8 --reporter=text mocha"
   },
   "repository": {
     "type": "git",
@@ -23,13 +23,13 @@
   },
   "devDependencies": {
     "@hyperswarm/testnet": "^3.1.0",
+    "c8": "^7.12.0",
     "chai": "^4.3.6",
+    "hyperdrive": "^11.0.0-alpha.10",
+    "hyperpubee-hyper-interface": "~0.2.0",
     "mocha": "^10.0.0",
-    "nyc": "^15.1.0",
     "random-access-memory": "^5.0.1",
-    "sinon": "^15.0.1",
-    "standard": "^17.0.0",
-    "hyperdrive": "^11.0.0-alpha.10"
+    "standard": "^17.0.0"
   },
   "standard": {
     "globals": [
@@ -44,11 +44,10 @@
     ]
   },
   "dependencies": {
-    "dcent-digraph": "~0.1.1",
+    "debounceify": "^1.0.0",
     "hexkey-utils": "^1.2.0",
     "hyperbee": "^2.3.0",
-    "hyperpubee-hyper-interface": "~0.2.0",
-    "hyperpubee-swarm-interface": "~0.4.1",
+    "hyperswarm": "^4.3.6",
     "safety-catch": "^1.0.2"
   }
 }

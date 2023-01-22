@@ -1,5 +1,5 @@
 import createTestnet from '@hyperswarm/testnet'
-import SwarmInterface from 'hyperpubee-swarm-interface'
+import SwarmInterface from '../lib/swarm-interface.js'
 import Hyperswarm from 'hyperswarm'
 import Corestore from 'corestore'
 import ram from 'random-access-memory'

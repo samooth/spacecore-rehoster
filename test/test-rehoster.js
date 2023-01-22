@@ -1,21 +1,21 @@
 import { expect } from 'chai'
-import { spy as _spy } from 'sinon'
 import ram from 'random-access-memory'
 
-import { getDiscoveryKey, asHex } from 'hexkey-utils'
+import { getDiscoveryKey, asHex, asBuffer } from 'hexkey-utils'
 import Corestore from 'corestore'
-import Hyperdrive from 'hyperdrive'
 
 import Rehoster from '../index.js'
 import { testnetFactory } from './fixtures.js'
-import HyperInterface from 'hyperpubee-hyper-interface'
+import Hyperbee from 'hyperbee'
+import Hyperdrive from 'hyperdrive'
 
 describe('Rehoster tests', function () {
   let testnet
   let rehoster
   let initNrCores
   let corestore, corestore2, swarm
-  let hyperInterface2, swarmInterface2
+  let swarmInterface2
+  let core
 
   this.beforeEach(async function () {
     corestore = new Corestore(ram)
@@ -27,17 +27,23 @@ describe('Rehoster tests', function () {
     )
 
     swarmInterface2 = testnet.swarmInterface2
-    hyperInterface2 = new HyperInterface(corestore2)
 
     swarm = testnet.swarmInterface1.swarm
 
-    rehoster = await Rehoster.initFrom({
-      beeName: 'keystoreBee',
+    const bee = new Hyperbee(corestore.get({ name: 'mybee' }))
+    await bee.ready()
+
+    rehoster = new Rehoster({
+      bee,
       corestore,
       swarm
     })
+    await rehoster.ready()
 
-    initNrCores = rehoster.hyperInterface.corestore.cores.size
+    initNrCores = rehoster.corestore.cores.size
+
+    core = corestore.get({ name: 'my core' })
+    await core.ready()
   })
 
   this.afterEach(async function () {
@@ -45,106 +51,122 @@ describe('Rehoster tests', function () {
     await testnet.destroy()
   })
 
-  it('Can sync an empty db', async function () {
-    await rehoster.syncWithDb()
-    expect(rehoster.hyperInterface.corestore.cores.size).to.equal(initNrCores)
-    expect(rehoster.servedDiscoveryKeys).to.deep.equal([getDiscoveryKey(rehoster.ownKey)])
-  })
-
   it('Can add a core', async function () {
-    const core = await rehoster.hyperInterface.createCore('my core')
     await rehoster.addCore(core.key)
 
-    expect(rehoster.hyperInterface.corestore.cores.size).to.equal(initNrCores + 1)
+    expect(corestore.cores.size).to.equal(initNrCores + 1)
+
+    // Give time for async update to catch up
+    await new Promise((resolve) => setTimeout(resolve, 1))
+
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
       [getDiscoveryKey(core.key), getDiscoveryKey(rehoster.ownKey)]
     )
   })
 
   it('Does not error if adding a key a second time', async function () {
-    const core = await rehoster.hyperInterface.createCore('my core')
     await rehoster.addCore(core.key)
     await rehoster.addCore(core.key)
 
-    expect(rehoster.hyperInterface.corestore.cores.size).to.equal(initNrCores + 1)
+    expect(corestore.cores.size).to.equal(initNrCores + 1)
+
+    await new Promise((resolve) => setTimeout(resolve, 1))
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
       [getDiscoveryKey(core.key), getDiscoveryKey(rehoster.ownKey)]
     )
+
+    await rehoster.removeCore(core.key) // Ensure added only once
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
+      [getDiscoveryKey(rehoster.ownKey)]
+    )
   })
 
-  it('Can add multiple cores with addCore', async function () {
-    const spy = _spy(rehoster, 'syncWithDb')
-
-    const core = await rehoster.hyperInterface.createCore('my core')
+  it('Can add multiple cores', async function () {
     await rehoster.addCore(core.key)
-    const core2 = await rehoster.hyperInterface.createCore('my core2')
+    const core2 = corestore.get({ name: 'my core2' })
+    await core2.ready()
     await rehoster.addCore(core2.key)
 
+    await new Promise((resolve) => setTimeout(resolve, 1))
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(core.key),
       getDiscoveryKey(core2.key),
       getDiscoveryKey(rehoster.ownKey)
     ])
-    expect(rehoster.hyperInterface.corestore.cores.size).to.equal(
+    expect(corestore.cores.size).to.equal(
       initNrCores + 2
     )
-
-    expect(spy.callCount).to.equal(2)
   })
 
-  it('Can add multiple cores with addCores', async function () {
-    const spy = _spy(rehoster, 'syncWithDb')
-
-    const core = await rehoster.hyperInterface.createCore('my core')
-    const core2 = await rehoster.hyperInterface.createCore('my core2')
-
-    await rehoster.addCores([core.key, core2.key])
-
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(core2.key),
-      getDiscoveryKey(rehoster.ownKey)
-    ])
-    expect(rehoster.hyperInterface.corestore.cores.size).to.equal(
-      initNrCores + 2
-    )
-    expect(spy.callCount).to.equal(1)
-  })
-
-  it('Follows recursion in a RecRehoster', async function () {
-    const recCore = await rehoster.hyperInterface.createCore('rec core')
-    const recCore2 = await rehoster.hyperInterface.createCore('rec core2')
-    await rehoster.addCores([recCore.key, recCore2.key])
-
-    const recRehoster = await Rehoster.initFrom({
-      beeName: 'rehoster2',
-      corestore,
-      swarm
+  it('Skips over non-hypercore keys in rehoster and emits event', async function () {
+    let detectedInvalidKey, detectedRehosterKey
+    rehoster.on('invalidKey', ({ invalidKey, rehosterKey }) => {
+      detectedRehosterKey = rehosterKey
+      detectedInvalidKey = invalidKey
     })
-    const core = await rehoster.hyperInterface.createCore('my core')
-    await recRehoster.addCores([core.key, rehoster.ownKey])
 
-    expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(recCore.key),
-      getDiscoveryKey(recCore2.key),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(recRehoster.ownKey)
-    ])
+    await rehoster.addCore(core.key)
+    await rehoster.dbInterface.bee.put('Not a hypercore key')
+
+    await new Promise((resolve) => setTimeout(resolve, 1))
+
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
+      [getDiscoveryKey(rehoster.ownKey), getDiscoveryKey(core.key)]
+    )
+    expect(detectedInvalidKey.toString()).to.deep.equal('Not a hypercore key')
+    expect(detectedRehosterKey).to.deep.equal(asBuffer(rehoster.ownKey))
+  })
+
+  it('Can host a rehoster with bee on another corestore/swarm', async function () {
+    await rehoster.addCore(core.key)
+    const replicatedBee = new Hyperbee(corestore2.get({ key: rehoster.bee.feed.key }))
+    await replicatedBee.ready()
+
+    await rehoster.swarmInterface.serveCore(rehoster.bee.feed.discoveryKey)
+    await rehoster.swarmInterface.swarm.flush()
+
+    const recRehoster = new Rehoster({
+      bee: replicatedBee,
+      corestore: corestore2,
+      swarm: swarmInterface2.swarm
+    })
+    await recRehoster.ready()
+
+    // TODO: investigate why this is needed
+    // (if no waiting, the afterEach's clean up takes >10s--some non-closed connection?)
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    await recRehoster.close()
   })
 
   it('works across different swarms', async function () {
-    const recCore = await rehoster.hyperInterface.createCore('rec core')
-    const recCore2 = await rehoster.hyperInterface.createCore('rec core2')
-    await rehoster.addCores([recCore.key, recCore2.key])
+    const recCore = await corestore.get({ name: 'rec core' })
+    const recCore2 = await corestore.get({ name: 'rec core2' })
+    await recCore.ready()
+    await recCore2.ready()
 
-    const recRehoster = await Rehoster.initFrom({
-      beeName: 'rehoster2',
+    await rehoster.addCore(recCore.key)
+    await rehoster.addCore(recCore2.key)
+
+    // Avoid race conditions with announcing
+    await rehoster.swarmInterface.swarm.flush()
+
+    const superCore = corestore2.get({ name: 'bee2-core' })
+    const superBee = new Hyperbee(superCore)
+    await superBee.ready()
+
+    const recRehoster = new Rehoster({
+      bee: superBee,
       corestore: corestore2,
-      swarm: testnet.swarmInterface2.swarm
+      swarm: swarmInterface2.swarm
     })
-    const core = await recRehoster.hyperInterface.createCore('my core')
-    await recRehoster.addCores([core.key, rehoster.ownKey])
+
+    await recRehoster.addCore(core.key)
+    await recRehoster.addCore(rehoster.ownKey)
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
     expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(recCore.key),
@@ -158,74 +180,30 @@ describe('Rehoster tests', function () {
   })
 
   it('auto updates if one of the seeded cores updates', async function () {
-    const core = await hyperInterface2.createCore('my core')
     await core.append('block0')
     await swarmInterface2.serveCore(core.discoveryKey)
+    await swarmInterface2.swarm.flush()
 
     await rehoster.addCore(core.key)
-    const readCore = await rehoster.hyperInterface.readCore(core.key)
+    const readCore = await corestore.get({ key: core.key })
+    await readCore.ready()
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
     expect(readCore.length).to.equal(1)
 
     await core.append('block1')
 
-    // Give time to update (0ms might be sufficient, but not sure)
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(readCore.length).to.equal(2)
   })
 
-  it('makes a hyperdrive contentKey available, but without announcing', async function () {
+  it('Stops swarming the 2 drive cores if no longer in the db', async function () {
     const drive = new Hyperdrive(corestore)
     await drive.put('/file', 'something')
     await rehoster.addCore(drive.key)
-
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey)
-    ])
-    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(drive.contentKey)
-    ])
-  })
-
-  it('Also processes keys it cannot find, and connects to + downloads them when they come online', async function () {
-    // DEVNOTE: if the unavailable key is a rehoster, only the rehoster itself will be rehosted,
-    // but not the keys it contains (until another sync is triggered)
-    const core = await rehoster.hyperInterface.createCore('my core')
     await rehoster.addCore(core.key)
-    const unavailableCore = await hyperInterface2.createCore('somecore')
-    await unavailableCore.append('offline entry')
-    await rehoster.addCore(unavailableCore.key)
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(unavailableCore.key)
-    ])
-
-    const readCore = await rehoster.hyperInterface.readCore(
-      unavailableCore.key, { valueEncoding: 'utf-8' }
-    )
-
-    let entry
-    readCore.get(0)
-      .then((content) => { entry = content })
-      .catch((err) => { throw err })
-
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(entry).to.eq(undefined)
-
-    await swarmInterface2.serveCore(unavailableCore.discoveryKey)
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(entry).to.eq('offline entry')
-  })
-
-  it('Stops swarming the 2 drive cores if no longer in the db on sync', async function () {
-    const drive = new Hyperdrive(corestore)
-    await drive.put('/file', 'something')
-    const core = await rehoster.hyperInterface.createCore('core')
-    await rehoster.addCores([drive.key, core.key])
+    await new Promise((resolve) => setTimeout(resolve, 1))
 
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       asHex(drive.discoveryKey),
@@ -240,6 +218,8 @@ describe('Rehoster tests', function () {
     ])
 
     await rehoster.removeCore(drive.key)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(rehoster.ownKey),
       getDiscoveryKey(core.key)
@@ -253,8 +233,11 @@ describe('Rehoster tests', function () {
   it('Does not delete keys which change from requested to served', async function () {
     const drive = new Hyperdrive(corestore)
     await drive.put('/file', 'something')
-    const core = await rehoster.hyperInterface.createCore('core')
-    await rehoster.addCores([drive.key, core.key])
+
+    await rehoster.addCore(drive.key)
+    await rehoster.addCore(core.key)
+
+    await new Promise((resolve) => setTimeout(resolve, 1))
 
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       asHex(drive.discoveryKey),
@@ -268,9 +251,12 @@ describe('Rehoster tests', function () {
       getDiscoveryKey(core.key)
     ])
 
-    // Rm drive's main key, but then explicitly host its content key
-    await rehoster.removeCore(drive.key, { sync: false })
+    // Rm drive's main key while content key explicitly hosted
     await rehoster.addCore(drive.contentKey)
+
+    await rehoster.removeCore(drive.key, { sync: false })
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(rehoster.ownKey),
@@ -285,8 +271,9 @@ describe('Rehoster tests', function () {
   })
 
   it('Can remove a core', async function () {
-    const core = await rehoster.hyperInterface.createCore('my core')
     await rehoster.addCore(core.key)
+    await new Promise((resolve) => setTimeout(resolve, 1))
+
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(core.key),
       getDiscoveryKey(rehoster.ownKey)
@@ -295,13 +282,83 @@ describe('Rehoster tests', function () {
 
     await rehoster.removeCore(core.key)
     expect((await rehoster.dbInterface.getHexKeys()).length).to.eq(0)
+
     // Stopped announcing it too
+    await new Promise((resolve) => setTimeout(resolve, 50))
     expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
       getDiscoveryKey(rehoster.ownKey)
     ])
   })
-  // integration test, which connects with swarm
-  // it('Runs the example without crashing (takes~30s)', async function () {
-  //   await util.promisify(execFile)('node', ['./example.js'])
-  // })
+
+  describe('Recursion', function () {
+    let recCore, recCore2, superBee
+    let recRehoster
+
+    this.beforeEach(async function () {
+      recCore = await corestore.get({ name: 'rec core' })
+      recCore2 = await corestore.get({ name: 'rec core2' })
+      await recCore.ready()
+      await recCore2.ready()
+
+      await rehoster.addCore(recCore.key)
+      await rehoster.addCore(recCore2.key)
+
+      const superCore = corestore.get({ name: 'bee2-core' })
+      superBee = new Hyperbee(superCore)
+      await superBee.ready()
+
+      recRehoster = new Rehoster({
+        bee: superBee,
+        corestore,
+        swarm
+      })
+    })
+
+    it('Follows recursion in a RecRehoster', async function () {
+      await recRehoster.addCore(core.key)
+      await recRehoster.addCore(rehoster.ownKey)
+
+      await new Promise((resolve) => setTimeout(resolve, 1))
+
+      expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
+        getDiscoveryKey(recCore.key),
+        getDiscoveryKey(recCore2.key),
+        getDiscoveryKey(rehoster.ownKey),
+        getDiscoveryKey(core.key),
+        getDiscoveryKey(recRehoster.ownKey)
+      ])
+    })
+
+    it('Recursively removes cores', async function () {
+      await recRehoster.addCore(core.key)
+      await recRehoster.addCore(rehoster.ownKey)
+
+      const superCore = corestore.get({ name: 'Core for superrehoster' })
+      const bee3 = new Hyperbee(superCore)
+      await bee3.ready()
+
+      const superRehoster = new Rehoster({ corestore, bee: bee3, swarm })
+      await superRehoster.addCore(recRehoster.ownKey)
+
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
+        getDiscoveryKey(recCore.key),
+        getDiscoveryKey(recCore2.key),
+        getDiscoveryKey(rehoster.ownKey),
+        getDiscoveryKey(core.key),
+        getDiscoveryKey(recRehoster.ownKey),
+        getDiscoveryKey(superRehoster.ownKey)
+      ])
+
+      await recRehoster.removeCore(rehoster.ownKey)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
+        getDiscoveryKey(core.key),
+        getDiscoveryKey(recRehoster.ownKey),
+        getDiscoveryKey(superRehoster.ownKey)
+      ])
+    })
+  })
 })
