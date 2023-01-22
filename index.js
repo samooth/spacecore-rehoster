@@ -1,83 +1,58 @@
-import { getDiscoveryKey } from 'hexkey-utils'
-import HyperInterface from 'hyperpubee-hyper-interface'
-import SwarmInterface from 'hyperpubee-swarm-interface'
+import { EventEmitter } from 'events'
+import Hyperswarm from 'hyperswarm'
 import Hyperbee from 'hyperbee'
 
+import SwarmInterface from './lib/swarm-interface.js'
 import RehosterNode from './lib/rehoster-node.js'
 import DbInterface from './lib/db-interface.js'
-import { DiGraph } from 'dcent-digraph'
+import { ensureIsRehoster } from './lib/utils.js'
 
-const OPTS_TO_AUTO_UPDATE = { sparse: false }
-Object.freeze(OPTS_TO_AUTO_UPDATE)
+export default class Rehoster extends EventEmitter {
+  constructor ({ corestore, bee, swarm = undefined }) {
+    super()
 
-export default class Rehoster {
-  constructor ({ dbInterface, hyperInterface, swarmInterface }) {
-    this.dbInterface = dbInterface
-    this.hyperInterface = hyperInterface
-    this.swarmInterface = swarmInterface
+    this.dbInterface = new DbInterface(bee)
+
+    swarm ??= new Hyperswarm()
+    this.swarmInterface = new SwarmInterface(swarm, corestore)
+
+    this.rootNode = new RehosterNode({
+      pubKey: this.ownKey,
+      swarmInterface: this.swarmInterface,
+      onInvalidKey: (args) => this.emit('invalidKey', args)
+    })
+    this._ready = Promise.all([
+      this.rootNode.setup(),
+      ensureIsRehoster(bee)
+    ])
+  }
+
+  async ready () {
+    await this._ready
+  }
+
+  get bee () {
+    return this.dbInterface.bee
+  }
+
+  get corestore () {
+    return this.swarmInterface.corestore
+  }
+
+  get swarm () {
+    return this.swarmInterface.swarm
   }
 
   get ownKey () {
     return this.dbInterface.bee.feed.key
   }
 
-  get rootNode () {
-    return new RehosterNode({
-      pubKey: this.ownKey,
-      hyperInterface: this.hyperInterface,
-      swarmInterface: this.swarmInterface
-    })
-  }
-
-  async syncWithDb () {
-    const diGraph = new DiGraph(this.rootNode)
-
-    const keys = []
-    const keysToAnnounce = []
-    const keysToRequest = []
-    for await (const node of diGraph.yieldAllNodesOnce()) {
-      keys.push(node.pubKey)
-      const discKey = getDiscoveryKey(node.pubKey)
-      node.shouldAnnounce ? keysToAnnounce.push(discKey) : keysToRequest.push(discKey)
-    }
-
-    // We fully unserve all cores marked for deletion.
-    // If a core changed from keysToAnnounce to keysToRequest or vice versa,
-    // it will be added there in the add-step.
-    const keysToUnserve = this.servedDiscoveryKeys.filter(
-      (key) => !keysToAnnounce.includes(key)
-    )
-    const keysToUnrequest = this.replicatedDiscoveryKeys.filter(
-      (key) => !keysToRequest.includes(key) && !keysToAnnounce.includes(key)
-    )
-
-    await this.swarmInterface.unserveCores([...keysToUnserve, ...keysToUnrequest])
-
-    // Serve/request all before reading
-    await this.swarmInterface.serveCores(keysToAnnounce)
-    await this.swarmInterface.requestCores(keysToRequest)
-
-    await this.hyperInterface.readCores(keys, OPTS_TO_AUTO_UPDATE)
-  }
-
-  async addCore (key, { doSync = true } = {}) {
+  async addCore (key) {
     await this.dbInterface.addKey(key)
-    if (doSync) await this.syncWithDb()
   }
 
-  async addCores (keys, { doSync = true } = {}) {
-    try {
-      await Promise.all(
-        keys.map((key) => this.addCore(key, { doSync: false }))
-      )
-    } finally {
-      if (doSync) await this.syncWithDb()
-    }
-  }
-
-  async removeCore (key, { doSync = true } = {}) {
+  async removeCore (key) {
     await this.dbInterface.removeKey(key)
-    if (doSync) await this.syncWithDb()
   }
 
   get servedDiscoveryKeys () {
@@ -90,30 +65,18 @@ export default class Rehoster {
 
   async close () {
     await this.swarmInterface.close()
-    await this.hyperInterface.close()
+    await this.corestore.close()
   }
 
   static async initFrom (
-    { beeName = 'rehoster-keyset', corestore, swarm, doSync = true, RehosterClass = Rehoster }
+    { beeName = 'rehoster-keys', corestore, swarm = undefined }
   ) {
     await corestore.ready()
-    const swarmInterface = new SwarmInterface(swarm, corestore)
-
-    const hyperInterface = new HyperInterface(corestore)
-    await hyperInterface.ready()
 
     const core = await corestore.get({ name: beeName })
     const bee = new Hyperbee(core)
     await bee.ready()
-    const dbInterface = new DbInterface(bee)
 
-    const res = new RehosterClass({
-      dbInterface,
-      hyperInterface,
-      swarmInterface
-    })
-
-    if (doSync) await res.syncWithDb()
-    return res
+    return new Rehoster({ corestore, bee, swarm })
   }
 }
