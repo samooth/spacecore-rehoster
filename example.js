@@ -11,7 +11,7 @@ const someCore = corestore.get({ name: 'mycore' })
 // NOTE: the core-keys you add need not be of same corestore
 await someCore.ready()
 
-await rehoster.addCore(someCore.key) // Accepts both buffer and hex keys
+await rehoster.add(someCore.key) // Accepts both buffer and hex keys
 
 console.log('rehoster served discovery keys:')
 console.log(rehoster.servedDiscoveryKeys)
@@ -32,7 +32,7 @@ const rerehoster = await Rehoster.initFrom({ corestore: corestore2 })
 // and will retry only after quite a while)
 await rehoster.swarmInterface.swarm.flush()
 
-await rerehoster.addCore(rehoster.ownKey)
+await rerehoster.add(rehoster.ownKey)
 
 // Connecting and updating runs in the background, so we need to give some time
 // (add more time if the change doesn't propagate in time)
@@ -54,7 +54,7 @@ async function onAppend () {
   console.log('Change reflected in remote core--new length:', readcore.length)
 
   console.log('\nYou can also remove a core from the rehoster')
-  await rehoster.removeCore(someCore.key)
+  await rehoster.delete(someCore.key)
 
   await new Promise((resolve) => setTimeout(resolve, 3000)) // Give some time to update
   console.log('rehoster:', rehoster.servedDiscoveryKeys) // Should only be 1

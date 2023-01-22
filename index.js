@@ -47,11 +47,11 @@ export default class Rehoster extends EventEmitter {
     return this.dbInterface.bee.feed.key
   }
 
-  async addCore (key) {
+  async add (key) {
     await this.dbInterface.addKey(key)
   }
 
-  async removeCore (key) {
+  async delete (key) {
     await this.dbInterface.removeKey(key)
   }
 

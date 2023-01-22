@@ -20,9 +20,33 @@ A Rehoster uses a corestore to store the hypercores on disk.
 
 The db (hyperbee) containing the hosted hypercores is also stored in the corestore.
 
-# Install
+## Install
 
 `npm i hypercore-rehoster`
+
+## API
+
+### `const rehoster = new Rehoster({ corestore, bee, swarm = undefined })`
+Initialises a rehoster. Note that the bee must be ready (`bee.ready()` must have been awaited).
+
+if no swarm is specified, a new one with default options will be created.
+
+### `const rehoster = await Rehoster.initFrom({ corestore, swarm?, beeName = 'rehoster-keys' })`
+Initialises a rehoster based on its corestore.
+The underlying hyperbee is loaded from the corestore based on the beeName.
+
+if no swarm is specified, a new one with default options will be created.
+
+### `await rehoster.add(key)`
+Add a new key to be rehosted (any valid key format can be used)
+
+Note that connecting with other peers and downloading the core's content happens in the background.
+
+### `await rehoster.remove(key)`
+Removes a key (any valid key format can be used)
+
+Note that propagating to recursively hosted cores happens in the background
+(e.g. a sub-rehoster's cores will not yet be unhosted immediately after this finishes)
 
 ## Usage
 
