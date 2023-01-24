@@ -1,10 +1,10 @@
-import { expect } from 'chai'
-import b4a from 'b4a'
-import { hyperInterfaceFactory, testnetFactory } from './fixtures.js'
-import RehosterNode from '../lib/rehoster-node.js'
-import { asHex, getDiscoveryKey } from 'hexkey-utils'
-import Hyperdrive from 'hyperdrive'
-import { ensureIsRehoster } from '../lib/utils.js'
+const { expect } = require('chai')
+const b4a = require('b4a')
+const { hyperInterfaceFactory, testnetFactory } = require('./fixtures.js')
+const RehosterNode = require('../lib/rehoster-node.js')
+const { asHex, getDiscoveryKey } = require('hexkey-utils')
+const Hyperdrive = require('hyperdrive')
+const { ensureIsRehoster } = require('../lib/utils.js')
 
 describe('RehosterNode tests', function () {
   let bee

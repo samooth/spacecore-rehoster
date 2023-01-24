@@ -1,13 +1,13 @@
-import createTestnet from '@hyperswarm/testnet'
-import SwarmInterface from '../lib/swarm-interface.js'
-import Hyperswarm from 'hyperswarm'
-import Corestore from 'corestore'
-import ram from 'random-access-memory'
-import HyperInterface from 'hyperpubee-hyper-interface'
+const createTestnet = require('@hyperswarm/testnet')
+const SwarmInterface = require('../lib/swarm-interface.js')
+const Hyperswarm = require('hyperswarm')
+const Corestore = require('corestore')
+const ram = require('random-access-memory')
+const HyperInterface = require('hyperpubee-hyper-interface')
 
-import DbInterface from '../lib/db-interface.js'
+const DbInterface = require('../lib/db-interface.js')
 
-export async function testnetFactory (corestore1, corestore2) {
+async function testnetFactory (corestore1, corestore2) {
   const testnet = await createTestnet(3)
   const bootstrap = testnet.bootstrap
 
@@ -37,7 +37,7 @@ export async function testnetFactory (corestore1, corestore2) {
   }
 }
 
-export async function hyperInterfaceFactory () {
+async function hyperInterfaceFactory () {
   const corestore = new Corestore(ram)
 
   const hyperInterface = new HyperInterface(corestore)
@@ -46,9 +46,15 @@ export async function hyperInterfaceFactory () {
   return hyperInterface
 }
 
-export async function dbInterfaceFactory (hyperInterface) {
+async function dbInterfaceFactory (hyperInterface) {
   hyperInterface ??= await hyperInterfaceFactory()
 
   const bee = await hyperInterface.createBee(`${Math.random()}`)
   return new DbInterface(bee)
+}
+
+module.exports = {
+  dbInterfaceFactory,
+  hyperInterfaceFactory,
+  testnetFactory
 }

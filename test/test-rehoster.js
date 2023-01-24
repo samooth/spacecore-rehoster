@@ -1,13 +1,13 @@
-import { expect } from 'chai'
-import ram from 'random-access-memory'
+const { expect } = require('chai')
+const ram = require('random-access-memory')
 
-import { getDiscoveryKey, asHex, asBuffer } from 'hexkey-utils'
-import Corestore from 'corestore'
+const { getDiscoveryKey, asHex, asBuffer } = require('hexkey-utils')
+const Corestore = require('corestore')
 
-import Rehoster from '../index.js'
-import { testnetFactory } from './fixtures.js'
-import Hyperbee from 'hyperbee'
-import Hyperdrive from 'hyperdrive'
+const Rehoster = require('../index.js')
+const { testnetFactory } = require('./fixtures.js')
+const Hyperbee = require('hyperbee')
+const Hyperdrive = require('hyperdrive')
 
 describe('Rehoster tests', function () {
   let testnet
