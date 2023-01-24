@@ -1,13 +1,13 @@
-import { EventEmitter } from 'events'
-import Hyperswarm from 'hyperswarm'
-import Hyperbee from 'hyperbee'
+const { EventEmitter } = require('events')
+const Hyperswarm = require('hyperswarm')
+const Hyperbee = require('hyperbee')
 
-import SwarmInterface from './lib/swarm-interface.js'
-import RehosterNode from './lib/rehoster-node.js'
-import DbInterface from './lib/db-interface.js'
-import { ensureIsRehoster } from './lib/utils.js'
+const SwarmInterface = require('./lib/swarm-interface.js')
+const RehosterNode = require('./lib/rehoster-node.js')
+const DbInterface = require('./lib/db-interface.js')
+const { ensureIsRehoster } = require('./lib/utils.js')
 
-export default class Rehoster extends EventEmitter {
+class Rehoster extends EventEmitter {
   constructor ({ corestore, bee, swarm = undefined }) {
     super()
 
@@ -80,3 +80,5 @@ export default class Rehoster extends EventEmitter {
     return new Rehoster({ corestore, bee, swarm })
   }
 }
+
+module.exports = Rehoster

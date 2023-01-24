@@ -1,9 +1,9 @@
 
-import { strict as nodeAssert } from 'assert'
+const { strict: nodeAssert } = require('assert')
+const { expect } = require('chai')
 
-import { expect } from 'chai'
-import { dbInterfaceFactory, hyperInterfaceFactory } from './fixtures.js'
-import DbInterface from '../lib/db-interface.js'
+const { dbInterfaceFactory, hyperInterfaceFactory } = require('./fixtures.js')
+const DbInterface = require('../lib/db-interface.js')
 
 describe('Db-interface tests', function () {
   let dbInterface
