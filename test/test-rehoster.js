@@ -1,3 +1,4 @@
+const { strict: nodeAssert } = require('assert')
 const { expect } = require('chai')
 const ram = require('random-access-memory')
 
@@ -135,18 +136,39 @@ describe('Rehoster tests', function () {
     await rehoster.swarmInterface.serveCore(rehoster.bee.feed.discoveryKey)
     await rehoster.swarmInterface.swarm.flush()
 
-    const recRehoster = new Rehoster({
+    const readRehoster = new Rehoster({
       bee: replicatedBee,
       corestore: corestore2,
       swarm: swarmInterface2.swarm
     })
-    await recRehoster.ready()
+    await readRehoster.ready()
 
     // TODO: investigate why this is needed
     // (if no waiting, the afterEach's clean up takes >10s--some non-closed connection?)
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    await recRehoster.close()
+    await readRehoster.close()
+  })
+
+  it('Errors on invalid rehoster from other corestore/swarm', async function () {
+    const aBee = new Hyperbee(corestore.get({ name: 'some core' }))
+    await aBee.put('not a rehoster')
+
+    const replicatedBee = new Hyperbee(corestore2.get({ key: aBee.feed.key }))
+    await replicatedBee.ready()
+
+    await rehoster.swarmInterface.serveCore(aBee.feed.discoveryKey)
+    await rehoster.swarmInterface.swarm.flush()
+
+    const readRehoster = new Rehoster({
+      bee: replicatedBee,
+      corestore: corestore2,
+      swarm: swarmInterface2.swarm
+    })
+    await nodeAssert.rejects(
+      readRehoster.ready(),
+      /Not a rehoster/
+    )
   })
 
   it('works across different swarms', async function () {
