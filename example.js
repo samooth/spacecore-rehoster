@@ -6,26 +6,22 @@ const corestoreLoc = ram // './my-store' for persistence on the specified file
 
 async function main () {
   const corestore = new Corestore(corestoreLoc)
-  const rehoster = await Rehoster.initFrom({ corestore })
+
+  const rehoster = new Rehoster(corestore)
 
   const someCore = corestore.get({ name: 'mycore' })
-  // NOTE: the core-keys you add need not be of same corestore
   await someCore.ready()
-
-  await rehoster.add(someCore.key) // Accepts both buffer and hex keys
+  await rehoster.add(someCore.key)
 
   console.log('rehoster served discovery keys:')
   console.log(rehoster.servedDiscoveryKeys)
-  // example output: [
-  //  '8d35aae54732aafc672dd168eb8c303f9dcea5ef3d3275897f61fe8779e1c882',
-  //  '4b4742caafa04b36428a5fd94f1f237fbb5ed162aaa56cb018b7d2ece58dfc3c'
-  // ]
-  // Note: a rehoster always serves itself, hence the 2 keys
+  // Note: a rehoster always serves itself, so will log 2 keys
 
   console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
 
   const corestore2 = new Corestore(ram)
-  const rerehoster = await Rehoster.initFrom({ corestore: corestore2 })
+
+  const rerehoster = new Rehoster(corestore2)
 
   // This ensures the other rehoster already flushed its topics to the swarm
   // In practice you don't need to worry about this, it just helps solve a race condition

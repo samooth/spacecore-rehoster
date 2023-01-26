@@ -30,29 +30,31 @@ The db (hyperbee) containing the hosted hypercores is also stored in the coresto
 
 ## API
 
-### `const rehoster = new Rehoster({ corestore, bee, swarm = undefined })`
-Initialises a rehoster. Note that the bee must be ready (`bee.ready()` must have been awaited).
+### `const rehoster = new Rehoster(corestore, { bee, beeName, swarm})`
+Initialises a rehoster.
 
 if no swarm is specified, a new one with default options will be created.
 
-Note: to be able to add/delete cores, the corestore should have write rights on the bee (e.g. it should have been created with that corestore).
+If a bee is passed, that bee will be used as database.
+If not, the bee will be opened from the corestore, based on the beeName (or the default name if none is provided).
 
-### `const rehoster = await Rehoster.initFrom({ corestore, swarm?, beeName = 'rehoster-keys' })`
-Initialises a rehoster based on the passed corestore.
-The underlying hyperbee is loaded from the corestore, using the given beeName.
+Note when passing a bee: to be able to add/delete cores, the corestore should have write rights on the bee (it should have been created with that corestore).
 
-if no swarm is specified, a new one with default options will be created.
-
+### `await rehoster.ready()`
+Set up the the rehoster, so it starts downloading and serving all the keys it contains.
 ### `await rehoster.add(key)`
-Add a new key to be rehosted (any valid key format can be used)
+Add a new key to be rehosted (any valid key format can be used).
 
 Note that connecting with other peers and downloading the core's content happens in the background, so not all content is immediately rehosted after `add` finishes.
 
-### `await rehoster.remove(key)`
-Removes a key (any valid key format can be used)
+### `await rehoster.delete(key)`
+Remove a key.
 
 Note that propagating the delete to recursively hosted cores happens in the background
-(e.g. a sub-rehoster's cores will not yet be unhosted immediately after `delete` finishes)
+(so a sub-rehoster's cores will not yet be unhosted immediately after `delete` finishes)
+
+### `await rehoster.close()`
+Close the rehoster, and clean up.
 
 ## Usage
 

@@ -56,10 +56,12 @@ describe('Db-interface tests', function () {
     expect(new Set(keys)).to.deep.equal(new Set([key, key2, key3]))
   })
 
-  it('Throws when initing with bee with incorrect encoding', async function () {
+  it('Throws on ready if bee has incorrect encoding', async function () {
     const hyperInterface = await hyperInterfaceFactory()
     const bee = await hyperInterface.createBee('bee', { keyEncoding: 'utf-8' })
-    expect(() => new DbInterface(bee)).to.throw(
+    const int = new DbInterface(bee)
+    await nodeAssert.rejects(
+      int.ready(),
       'DbInterface must have default (binary) keyEncoding'
     )
   })

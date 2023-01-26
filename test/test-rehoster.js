@@ -34,11 +34,7 @@ describe('Rehoster tests', function () {
     const bee = new Hyperbee(corestore.get({ name: 'mybee' }))
     await bee.ready()
 
-    rehoster = new Rehoster({
-      bee,
-      corestore,
-      swarm
-    })
+    rehoster = new Rehoster(corestore, { swarm })
     await rehoster.ready()
 
     initNrCores = rehoster.corestore.cores.size
@@ -136,16 +132,13 @@ describe('Rehoster tests', function () {
     await rehoster.swarmInterface.serveCore(rehoster.bee.feed.discoveryKey)
     await rehoster.swarmInterface.swarm.flush()
 
-    const readRehoster = new Rehoster({
-      bee: replicatedBee,
-      corestore: corestore2,
-      swarm: swarmInterface2.swarm
-    })
+    await swarmInterface2.requestCore(getDiscoveryKey(rehoster.ownKey))
+    const readRehoster = new Rehoster(corestore, { swarm: swarmInterface2.swarm })
     await readRehoster.ready()
 
-    // TODO: investigate why this is needed
-    // (if no waiting, the afterEach's clean up takes >10s--some non-closed connection?)
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
+      [getDiscoveryKey(readRehoster.ownKey), getDiscoveryKey(core.key)]
+    )
 
     await readRehoster.close()
   })
@@ -160,11 +153,8 @@ describe('Rehoster tests', function () {
     await rehoster.swarmInterface.serveCore(aBee.feed.discoveryKey)
     await rehoster.swarmInterface.swarm.flush()
 
-    const readRehoster = new Rehoster({
-      bee: replicatedBee,
-      corestore: corestore2,
-      swarm: swarmInterface2.swarm
-    })
+    await swarmInterface2.requestCore(getDiscoveryKey(rehoster.ownKey))
+    const readRehoster = new Rehoster(corestore2, { bee: aBee, swarm: swarmInterface2.swarm })
     await nodeAssert.rejects(
       readRehoster.ready(),
       /Not a rehoster/
@@ -187,11 +177,7 @@ describe('Rehoster tests', function () {
     const superBee = new Hyperbee(superCore)
     await superBee.ready()
 
-    const recRehoster = new Rehoster({
-      bee: superBee,
-      corestore: corestore2,
-      swarm: swarmInterface2.swarm
-    })
+    const recRehoster = new Rehoster(corestore2, { swarm: swarmInterface2.swarm })
 
     await recRehoster.add(core.key)
     await recRehoster.add(rehoster.ownKey)
@@ -337,11 +323,7 @@ describe('Rehoster tests', function () {
       superBee = new Hyperbee(superCore)
       await superBee.ready()
 
-      recRehoster = new Rehoster({
-        bee: superBee,
-        corestore,
-        swarm
-      })
+      recRehoster = new Rehoster(corestore, { bee: superBee, swarm })
     })
 
     it('Follows recursion in a RecRehoster', async function () {
@@ -365,12 +347,9 @@ describe('Rehoster tests', function () {
 
       const superCore = corestore.get({ name: 'Core for superrehoster' })
       const bee3 = new Hyperbee(superCore)
-      await bee3.ready()
 
-      const superRehoster = new Rehoster({ corestore, bee: bee3, swarm })
+      const superRehoster = new Rehoster(corestore, { bee: bee3, swarm })
       await superRehoster.add(recRehoster.ownKey)
-
-      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
         getDiscoveryKey(recCore.key),
