@@ -21,10 +21,10 @@ class Rehoster extends EventEmitter {
       swarmInterface: this.swarmInterface,
       onInvalidKey: (args) => this.emit('invalidKey', args)
     })
-    this._ready = Promise.all([
-      this.rootNode.setup(),
-      ensureIsRehoster(bee)
-    ])
+
+    this._ready = ensureIsRehoster(bee)
+      .then(this.rootNode.ready())
+      .catch(e => { throw e })
   }
 
   async ready () {
