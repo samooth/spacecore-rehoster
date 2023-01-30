@@ -76,6 +76,7 @@ class Rehoster extends EventEmitter {
   }
 
   async close () {
+    if (!this._opening) await this.ready()
     if (this._closing) return this._closing
     this._closing = this._close()
     return this._closing
