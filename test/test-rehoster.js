@@ -319,18 +319,19 @@ describe('Rehoster tests', function () {
       await rehoster.add(recCore.key)
       await rehoster.add(recCore2.key)
 
-      const superCore = corestore.get({ name: 'bee2-core' })
+      const superCore = corestore2.get({ name: 'bee2-core' })
       superBee = new Hyperbee(superCore)
       await superBee.ready()
 
-      recRehoster = new Rehoster(corestore, { bee: superBee, swarm })
+      recRehoster = new Rehoster(corestore2, { bee: superBee, swarm: swarmInterface2.swarm })
+      await rehoster.swarm.flush()
     })
 
     it('Follows recursion in a RecRehoster', async function () {
       await recRehoster.add(core.key)
       await recRehoster.add(rehoster.ownKey)
 
-      await new Promise((resolve) => setTimeout(resolve, 1))
+      await wait(100)
 
       expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
         getDiscoveryKey(recCore.key),
@@ -351,6 +352,8 @@ describe('Rehoster tests', function () {
       const superRehoster = new Rehoster(corestore, { bee: bee3, swarm })
       await superRehoster.add(recRehoster.ownKey)
 
+      await wait(100)
+
       expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
         getDiscoveryKey(recCore.key),
         getDiscoveryKey(recCore2.key),
@@ -361,7 +364,7 @@ describe('Rehoster tests', function () {
       ])
 
       await recRehoster.delete(rehoster.ownKey)
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await wait(100)
 
       expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
         getDiscoveryKey(core.key),
@@ -377,5 +380,33 @@ describe('Rehoster tests', function () {
 
       expect(rehoster.swarmInterface._servedCounters.get(getDiscoveryKey(rehoster.ownKey))).to.equal(1)
     })
+
+    it('Removes a core hosted twice only when removed in both places', async function () {
+      await recRehoster.add(rehoster.ownKey)
+      await recRehoster.add(core.key)
+      await rehoster.add(core.key) // Added twice now
+
+      await wait(100)
+
+      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(2)
+
+      await recRehoster.delete(core.key)
+      await wait(100)
+      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(1)
+
+      await rehoster.delete(core.key)
+      await wait(100)
+      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(0)
+      expect(recRehoster.swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
+        getDiscoveryKey(recRehoster.ownKey),
+        getDiscoveryKey(rehoster.ownKey),
+        getDiscoveryKey(recCore.key),
+        getDiscoveryKey(recCore2.key)
+      ])
+    })
   })
 })
+
+async function wait (ms = 100) {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
