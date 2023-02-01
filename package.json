@@ -46,7 +46,7 @@
   "dependencies": {
     "debounceify": "^1.0.0",
     "hexkey-utils": "^1.2.0",
-    "hyperbee": "git+https://github.com/holepunchto/hyperbee.git#nonsnapshot-stream-behaviour",
+    "hyperbee": "^2.4.2",
     "hyperswarm": "^4.3.6",
     "ready-resource": "^1.0.0",
     "safety-catch": "^1.0.2"
