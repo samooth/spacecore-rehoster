@@ -125,6 +125,8 @@ describe('Rehoster tests', function () {
   })
 
   it('Can host a rehoster with bee on another corestore/swarm', async function () {
+    // TODO: debug rarely occurring race condition on this test
+    // (have seen it timeout)
     await rehoster.add(core.key)
     const replicatedBee = new Hyperbee(corestore2.get({ key: rehoster.bee.feed.key }))
     await replicatedBee.ready()
