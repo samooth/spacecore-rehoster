@@ -39,6 +39,7 @@ class Rehoster extends EventEmitter {
       onInvalidKey: (args) => this.emit('invalidKey', args)
     })
     await this.rootNode.ready()
+    this.rootNode.on('error', (err) => this.emit('error', err))
   }
 
   get bee () {
