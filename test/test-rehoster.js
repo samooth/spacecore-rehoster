@@ -425,6 +425,10 @@ describe('Rehoster tests', function () {
       ])
     })
   })
+
+  it('exports the rehoster sub name', function () {
+    expect(Rehoster.SUB).to.equal('\x00\x00\x00rehoster_key')
+  })
 })
 
 async function wait (ms = 100) {

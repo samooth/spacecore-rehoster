@@ -4,7 +4,7 @@ const { hyperInterfaceFactory, testnetFactory } = require('./fixtures.js')
 const RehosterNode = require('../lib/rehoster-node.js')
 const { asHex, getDiscoveryKey } = require('hexkey-utils')
 const Hyperdrive = require('hyperdrive')
-const { ensureIsRehoster } = require('../lib/utils.js')
+const { ensureIsRehoster, isRehoster } = require('../lib/utils.js')
 const { once } = require('events')
 
 describe('RehosterNode tests', function () {
@@ -84,6 +84,32 @@ describe('RehosterNode tests', function () {
     expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
       [asHex(bee.feed.discoveryKey), getDiscoveryKey(key), getDiscoveryKey(key2), getDiscoveryKey(key3)]
     )
+  })
+
+  it('processes entries in dedicated bee sub', async function () {
+    bee = await hyperInterface.createBee('normalBee')
+    await bee.put('some', 'thing')
+    expect(await isRehoster(bee)).to.equal(false)
+
+    const sub = bee.sub('\x00\x00\x00rehoster_key')
+    await sub.put(key)
+
+    const node = new RehosterNode({ pubKey: bee.core.key, swarmInterface })
+    await node.ready()
+
+    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, getDiscoveryKey(key)].map(k => asHex(k))
+    )
+
+    // Also those added later
+    await sub.put(key2)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
+      bee.feed.discoveryKey,
+      getDiscoveryKey(key),
+      getDiscoveryKey(key2)
+    ].map(k => asHex(k)))
   })
 
   it('makes a hyperdrive contentKey available, but without announcing', async function () {
