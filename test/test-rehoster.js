@@ -1,14 +1,14 @@
 const { strict: nodeAssert } = require('assert')
 const { expect } = require('chai')
 const ram = require('random-access-memory')
-
+const sinon = require('sinon')
 const { getDiscoveryKey, asHex, asBuffer } = require('hexkey-utils')
 const Corestore = require('corestore')
+const Hyperbee = require('hyperbee')
+const Hyperdrive = require('hyperdrive')
 
 const Rehoster = require('../index.js')
 const { testnetFactory } = require('./fixtures.js')
-const Hyperbee = require('hyperbee')
-const Hyperdrive = require('hyperdrive')
 
 describe('Rehoster tests', function () {
   let testnet
@@ -342,6 +342,24 @@ describe('Rehoster tests', function () {
         getDiscoveryKey(core.key),
         getDiscoveryKey(recRehoster.ownKey)
       ])
+    })
+
+    it('Emits error if a child errors', async function () {
+      await recRehoster.add(core.key)
+      await recRehoster.add(rehoster.ownKey)
+
+      await wait(100)
+
+      // Mock the runWather method so it crashes on the next diff
+      const stub = sinon.stub(recRehoster.rootNode._children.get(asHex(rehoster.ownKey)), '_consumeDiffStream')
+      stub.throws(new Error('Unexpected error while consuming watcher'))
+      await rehoster.add(recCore.key)
+
+      let error = null
+      recRehoster.on('error', (err) => { error = err })
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      expect(error.message).to.equal('Unexpected error while consuming watcher')
     })
 
     it('Recursively removes cores', async function () {

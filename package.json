@@ -29,6 +29,7 @@
     "hyperpubee-hyper-interface": "~0.2.0",
     "mocha": "^10.0.0",
     "random-access-memory": "^5.0.1",
+    "sinon": "^15.0.3",
     "standard": "^17.0.0"
   },
   "standard": {
