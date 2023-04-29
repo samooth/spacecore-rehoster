@@ -351,7 +351,7 @@ describe('Rehoster tests', function () {
       await wait(100)
 
       // Mock the runWather method so it crashes on the next diff
-      const stub = sinon.stub(recRehoster.rootNode._children.get(asHex(rehoster.ownKey)), '_consumeDiffStream')
+      const stub = sinon.stub(recRehoster.rootNode.children.get(asHex(rehoster.ownKey)), '_consumeDiffStream')
       stub.throws(new Error('Unexpected error while consuming watcher'))
       await rehoster.add(recCore.key)
 

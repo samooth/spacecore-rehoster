@@ -252,7 +252,7 @@ describe('RehosterNode tests', function () {
 
 function _getAllSubNodes (rehosterNode) {
   const res = [rehosterNode]
-  rehosterNode._children?.forEach((c) => res.push(..._getAllSubNodes(c)))
+  rehosterNode.children?.forEach((c) => res.push(..._getAllSubNodes(c)))
 
   return res
 }
