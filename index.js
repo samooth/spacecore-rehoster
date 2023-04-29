@@ -1,10 +1,11 @@
 const { EventEmitter } = require('events')
 const Hyperswarm = require('hyperswarm')
+const Hyperbee = require('hyperbee')
 
 const SwarmInterface = require('./lib/swarm-interface.js')
 const RehosterNode = require('./lib/rehoster-node.js')
 const DbInterface = require('./lib/db-interface.js')
-const Hyperbee = require('hyperbee')
+const { METADATA_SUB } = require('./lib/constants.js')
 
 const DEFAULT_BEE_NAME = 'rehoster-bee'
 
@@ -22,6 +23,10 @@ class Rehoster extends EventEmitter {
 
     this._opening = null
     this._closing = null
+  }
+
+  static get SUB () {
+    return METADATA_SUB
   }
 
   async ready () {
