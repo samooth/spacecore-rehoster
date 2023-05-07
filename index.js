@@ -1,6 +1,6 @@
-const { EventEmitter } = require('events')
 const Hyperswarm = require('hyperswarm')
 const Hyperbee = require('hyperbee')
+const ReadyResource = require('ready-resource')
 
 const SwarmInterface = require('./lib/swarm-interface.js')
 const RehosterNode = require('./lib/rehoster-node.js')
@@ -9,7 +9,7 @@ const { METADATA_SUB } = require('./lib/constants.js')
 
 const DEFAULT_BEE_NAME = 'rehoster-bee'
 
-class Rehoster extends EventEmitter {
+class Rehoster extends ReadyResource {
   constructor (corestore, { bee = undefined, beeName = DEFAULT_BEE_NAME, swarm = undefined } = {}) {
     super()
 
@@ -20,19 +20,10 @@ class Rehoster extends EventEmitter {
     this.swarmInterface = new SwarmInterface(swarm, corestore)
 
     this.rootNode = null
-
-    this._opening = null
-    this._closing = null
   }
 
   static get SUB () {
     return METADATA_SUB
-  }
-
-  async ready () {
-    if (this._opening) return this._opening
-    this._opening = this._open()
-    return this._opening
   }
 
   async _open () {
@@ -64,12 +55,12 @@ class Rehoster extends EventEmitter {
   }
 
   async add (key) {
-    if (!this._opening) await this.ready()
+    if (!this.opened) await this.ready()
     await this.dbInterface.addKey(key)
   }
 
   async delete (key) {
-    if (!this._opening) await this.ready()
+    if (!this.opened) await this.ready()
     await this.dbInterface.removeKey(key)
   }
 
@@ -79,13 +70,6 @@ class Rehoster extends EventEmitter {
 
   get replicatedDiscoveryKeys () {
     return this.swarmInterface.replicatedDiscoveryKeys
-  }
-
-  async close () {
-    if (!this._opening) await this.ready()
-    if (this._closing) return this._closing
-    this._closing = this._close()
-    return this._closing
   }
 
   async _close () {
