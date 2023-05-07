@@ -18,6 +18,8 @@ The rehoster automatically keeps the cores it hosts up to date, by continuously 
 The rehoster is recursive: if you rehost the key of another rehoster, you will automatically
 also rehost all the cores contained in that rehoster (and if those also contain rehoster keys, you will host their cores as well, recursively).
 
+It is possible to turn a normal Hyperbee into a rehoster by adding keys to the sub at `Rehoster.SUB`. See the Usage section.
+
 Rehosters can host one other, in which case they will host the union of all their individual cores.
 
 A Rehoster uses a corestore to store the hypercores on disk.
@@ -40,6 +42,12 @@ If not, the bee will be opened from the corestore, based on the beeName (or the 
 
 Note when passing a bee: to be able to add/delete cores, the corestore should have write rights on the bee (it should have been created with that corestore).
 
+### `Rehoster.SUB`
+A special Hyperbee sub identifier which the rehoster watches.
+If Hypercore keys are added there, then those will be rehosted too.
+
+This allows arbitrary Hyperbees to behave as a rehoster.
+
 ### `await rehoster.ready()`
 Set up the the rehoster, so it starts downloading and serving all the keys it contains.
 ### `await rehoster.add(key)`
@@ -58,4 +66,13 @@ Close the rehoster, and clean up.
 
 ## Usage
 
-See [example.js](example.js).
+See [example.js](example.js) for the basic usage.
+
+To make an existing Hyperbee behave as a rehoster, you can add keys to the sub at `Rehoster.SUB`:
+```
+const core = new Hypercore(...)
+const bee = new Hyperbee(...)
+const sub = bee.sub(Rehoster.SUB)
+await sub.put(core.key)
+// The core will now be rehosted whenever the bee is
+```
