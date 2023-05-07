@@ -2,7 +2,7 @@ const Hyperswarm = require('hyperswarm')
 const Hyperbee = require('hyperbee')
 const ReadyResource = require('ready-resource')
 
-const SwarmInterface = require('./lib/swarm-interface.js')
+const SwarmManager = require('swarm-manager')
 const RehosterNode = require('./lib/rehoster-node.js')
 const DbInterface = require('./lib/db-interface.js')
 const { METADATA_SUB } = require('./lib/constants.js')
@@ -17,7 +17,7 @@ class Rehoster extends ReadyResource {
     this.dbInterface = new DbInterface(bee)
 
     swarm ??= new Hyperswarm()
-    this.swarmInterface = new SwarmInterface(swarm, corestore)
+    this.swarmManager = new SwarmManager(swarm, corestore)
 
     this.rootNode = null
   }
@@ -31,7 +31,7 @@ class Rehoster extends ReadyResource {
 
     this.rootNode = new RehosterNode({
       pubKey: this.ownKey,
-      swarmInterface: this.swarmInterface,
+      swarmManager: this.swarmManager,
       onInvalidKey: (args) => this.emit('invalidKey', args)
     })
     await this.rootNode.ready()
@@ -43,11 +43,11 @@ class Rehoster extends ReadyResource {
   }
 
   get corestore () {
-    return this.swarmInterface.corestore
+    return this.swarmManager.store
   }
 
   get swarm () {
-    return this.swarmInterface.swarm
+    return this.swarmManager.swarm
   }
 
   get ownKey () {
@@ -64,18 +64,22 @@ class Rehoster extends ReadyResource {
     await this.dbInterface.removeKey(key)
   }
 
-  get servedDiscoveryKeys () {
-    return this.swarmInterface.servedDiscoveryKeys
+  get servedKeys () {
+    return this.swarmManager.servedKeys
   }
 
-  get replicatedDiscoveryKeys () {
-    return this.swarmInterface.replicatedDiscoveryKeys
+  get requestedKeys () {
+    return this.swarmManager.requestedKeys
+  }
+
+  get keys () {
+    return this.swarmManager.keys
   }
 
   async _close () {
     await this.rootNode.close()
     await this.dbInterface.close()
-    await this.swarmInterface.close()
+    await this.swarmManager.close()
     await this.corestore.close()
   }
 }

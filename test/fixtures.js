@@ -1,5 +1,5 @@
 const createTestnet = require('@hyperswarm/testnet')
-const SwarmInterface = require('../lib/swarm-interface.js')
+const SwarmManager = require('swarm-manager')
 const Hyperswarm = require('hyperswarm')
 const Corestore = require('corestore')
 const ram = require('random-access-memory')
@@ -11,19 +11,19 @@ async function testnetFactory (corestore1, corestore2) {
   const testnet = await createTestnet(3)
   const bootstrap = testnet.bootstrap
 
-  const swarmInterface1 = new SwarmInterface(
+  const swarmManager1 = new SwarmManager(
     new Hyperswarm({ bootstrap }),
     corestore1
   )
-  const swarmInterface2 = new SwarmInterface(
+  const swarmManager2 = new SwarmManager(
     new Hyperswarm({ bootstrap }),
     corestore2
   )
 
   async function destroyTestnetFactory () {
     await Promise.all([
-      swarmInterface2.close(),
-      swarmInterface1.close()
+      swarmManager2.close(),
+      swarmManager1.close()
     ])
     await testnet.destroy()
   }
@@ -31,8 +31,8 @@ async function testnetFactory (corestore1, corestore2) {
   return {
     testnet,
     bootstrap,
-    swarmInterface1,
-    swarmInterface2,
+    swarmManager1,
+    swarmManager2,
     destroy: destroyTestnetFactory
   }
 }

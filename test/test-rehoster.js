@@ -2,11 +2,11 @@ const { strict: nodeAssert } = require('assert')
 const { expect } = require('chai')
 const ram = require('random-access-memory')
 const sinon = require('sinon')
-const { getDiscoveryKey, asHex, asBuffer } = require('hexkey-utils')
+const { asHex, asBuffer, getDiscoveryKey } = require('hexkey-utils')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
 const Hyperdrive = require('hyperdrive')
-
+const { discoveryKey } = require('hypercore-crypto')
 const Rehoster = require('../index.js')
 const { testnetFactory } = require('./fixtures.js')
 
@@ -15,7 +15,7 @@ describe('Rehoster tests', function () {
   let rehoster
   let initNrCores
   let corestore, corestore2, swarm
-  let swarmInterface2
+  let swarmManager2
   let core
 
   this.beforeEach(async function () {
@@ -27,9 +27,9 @@ describe('Rehoster tests', function () {
       corestore2
     )
 
-    swarmInterface2 = testnet.swarmInterface2
+    swarmManager2 = testnet.swarmManager2
 
-    swarm = testnet.swarmInterface1.swarm
+    swarm = testnet.swarmManager1.swarm
 
     const bee = new Hyperbee(corestore.get({ name: 'mybee' }))
     await bee.ready()
@@ -56,8 +56,8 @@ describe('Rehoster tests', function () {
     // Give time for async update to catch up
     await new Promise((resolve) => setTimeout(resolve, 1))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(core.key), getDiscoveryKey(rehoster.ownKey)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(core.key), discoveryKey(rehoster.ownKey)]
     )
   })
 
@@ -68,15 +68,15 @@ describe('Rehoster tests', function () {
     expect(corestore.cores.size).to.equal(initNrCores + 1)
 
     await new Promise((resolve) => setTimeout(resolve, 1))
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(core.key), getDiscoveryKey(rehoster.ownKey)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(core.key), discoveryKey(rehoster.ownKey)]
     )
 
     await rehoster.delete(core.key) // Ensure added only once
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(rehoster.ownKey)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(rehoster.ownKey)]
     )
   })
 
@@ -87,10 +87,10 @@ describe('Rehoster tests', function () {
     await rehoster.add(core2.key)
 
     await new Promise((resolve) => setTimeout(resolve, 1))
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(core2.key),
-      getDiscoveryKey(rehoster.ownKey)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(core.key),
+      discoveryKey(core2.key),
+      discoveryKey(rehoster.ownKey)
     ])
     expect(corestore.cores.size).to.equal(
       initNrCores + 2
@@ -110,8 +110,8 @@ describe('Rehoster tests', function () {
 
     await new Promise((resolve) => setTimeout(resolve, 1))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(rehoster.ownKey), getDiscoveryKey(core.key)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(rehoster.ownKey), discoveryKey(core.key)]
     )
     expect(detectedInvalidKey.toString()).to.deep.equal('Not a hypercore key')
     expect(detectedRehosterKey).to.deep.equal(asBuffer(rehoster.ownKey))
@@ -119,8 +119,8 @@ describe('Rehoster tests', function () {
     // Sanity check: later deleting the key doesn't cause issues
     await rehoster.dbInterface.bee.del(txt)
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(rehoster.ownKey), getDiscoveryKey(core.key)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(rehoster.ownKey), discoveryKey(core.key)]
     )
   })
 
@@ -129,15 +129,15 @@ describe('Rehoster tests', function () {
     const replicatedBee = new Hyperbee(corestore2.get({ key: rehoster.bee.feed.key }))
     await replicatedBee.ready()
 
-    await rehoster.swarmInterface.serveCore(rehoster.bee.feed.discoveryKey)
-    await rehoster.swarmInterface.swarm.flush()
+    await rehoster.swarmManager.serve(rehoster.bee.feed.discoveryKey)
+    await rehoster.swarmManager.swarm.flush()
 
-    await swarmInterface2.requestCore(getDiscoveryKey(rehoster.ownKey))
-    const readRehoster = new Rehoster(corestore, { swarm: swarmInterface2.swarm })
+    await swarmManager2.request(discoveryKey(rehoster.ownKey))
+    const readRehoster = new Rehoster(corestore, { swarm: swarmManager2.swarm })
     await readRehoster.ready()
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members(
-      [getDiscoveryKey(readRehoster.ownKey), getDiscoveryKey(core.key)]
+    expect(rehoster.servedKeys).to.deep.have.same.members(
+      [discoveryKey(readRehoster.ownKey), discoveryKey(core.key)]
     )
 
     await readRehoster.close()
@@ -150,11 +150,11 @@ describe('Rehoster tests', function () {
     const replicatedBee = new Hyperbee(corestore2.get({ key: aBee.feed.key }))
     await replicatedBee.ready()
 
-    await rehoster.swarmInterface.serveCore(aBee.feed.discoveryKey)
-    await rehoster.swarmInterface.swarm.flush()
+    await rehoster.swarmManager.serve(aBee.feed.discoveryKey)
+    await rehoster.swarmManager.swarm.flush()
 
-    await swarmInterface2.requestCore(getDiscoveryKey(rehoster.ownKey))
-    const readRehoster = new Rehoster(corestore2, { bee: aBee, swarm: swarmInterface2.swarm })
+    await swarmManager2.request(discoveryKey(rehoster.ownKey))
+    const readRehoster = new Rehoster(corestore2, { bee: aBee, swarm: swarmManager2.swarm })
     await nodeAssert.rejects(
       readRehoster.ready(),
       /Not a rehoster/
@@ -171,25 +171,25 @@ describe('Rehoster tests', function () {
     await rehoster.add(recCore2.key)
 
     // Avoid race conditions with announcing
-    await rehoster.swarmInterface.swarm.flush()
+    await rehoster.swarmManager.swarm.flush()
 
     const superCore = corestore2.get({ name: 'bee2-core' })
     const superBee = new Hyperbee(superCore)
     await superBee.ready()
 
-    const recRehoster = new Rehoster(corestore2, { swarm: swarmInterface2.swarm })
+    const recRehoster = new Rehoster(corestore2, { swarm: swarmManager2.swarm })
 
     await recRehoster.add(core.key)
     await recRehoster.add(rehoster.ownKey)
 
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(recCore.key),
-      getDiscoveryKey(recCore2.key),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(recRehoster.ownKey)
+    expect(recRehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(recCore.key),
+      discoveryKey(recCore2.key),
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key),
+      discoveryKey(recRehoster.ownKey)
     ])
 
     await recRehoster.close()
@@ -197,8 +197,8 @@ describe('Rehoster tests', function () {
 
   it('auto updates if one of the seeded cores updates', async function () {
     await core.append('block0')
-    await swarmInterface2.serveCore(core.discoveryKey)
-    await swarmInterface2.swarm.flush()
+    await swarmManager2.serve(core.discoveryKey)
+    await swarmManager2.swarm.flush()
 
     await rehoster.add(core.key)
     const readCore = await corestore.get({ key: core.key })
@@ -221,28 +221,28 @@ describe('Rehoster tests', function () {
 
     await new Promise((resolve) => setTimeout(resolve, 1))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      drive.discoveryKey,
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key)
     ])
-    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(drive.contentKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.keys).to.deep.have.same.members([
+      drive.discoveryKey,
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(drive.contentKey),
+      discoveryKey(core.key)
     ])
 
     await rehoster.delete(drive.key)
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key)
     ])
-    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.keys).to.deep.have.same.members([
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key)
     ])
   })
 
@@ -255,16 +255,16 @@ describe('Rehoster tests', function () {
 
     await new Promise((resolve) => setTimeout(resolve, 1))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      drive.discoveryKey,
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key)
     ])
-    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
-      asHex(drive.discoveryKey),
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(drive.contentKey),
-      getDiscoveryKey(core.key)
+    expect(rehoster.keys).to.deep.have.same.members([
+      drive.discoveryKey,
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(drive.contentKey),
+      discoveryKey(core.key)
     ])
 
     // Rm drive's main key while content key explicitly hosted
@@ -274,15 +274,15 @@ describe('Rehoster tests', function () {
 
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(drive.contentKey)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key),
+      discoveryKey(drive.contentKey)
     ])
-    expect(rehoster.replicatedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(rehoster.ownKey),
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(drive.contentKey)
+    expect(rehoster.keys).to.deep.have.same.members([
+      discoveryKey(rehoster.ownKey),
+      discoveryKey(core.key),
+      discoveryKey(drive.contentKey)
     ])
   })
 
@@ -290,9 +290,9 @@ describe('Rehoster tests', function () {
     await rehoster.add(core.key)
     await new Promise((resolve) => setTimeout(resolve, 1))
 
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      getDiscoveryKey(rehoster.ownKey)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(core.key),
+      discoveryKey(rehoster.ownKey)
     ])
     expect((await rehoster.dbInterface.getHexKeys()).length).to.eq(1)
 
@@ -301,8 +301,8 @@ describe('Rehoster tests', function () {
 
     // Stopped announcing it too
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(rehoster.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(rehoster.ownKey)
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(rehoster.ownKey)
     ])
   })
 
@@ -323,7 +323,7 @@ describe('Rehoster tests', function () {
       superBee = new Hyperbee(superCore)
       await superBee.ready()
 
-      recRehoster = new Rehoster(corestore2, { bee: superBee, swarm: swarmInterface2.swarm })
+      recRehoster = new Rehoster(corestore2, { bee: superBee, swarm: swarmManager2.swarm })
       await rehoster.swarm.flush()
     })
 
@@ -333,12 +333,12 @@ describe('Rehoster tests', function () {
 
       await wait(100)
 
-      expect(recRehoster.servedDiscoveryKeys).to.deep.have.same.members([
-        getDiscoveryKey(recCore.key),
-        getDiscoveryKey(recCore2.key),
-        getDiscoveryKey(rehoster.ownKey),
-        getDiscoveryKey(core.key),
-        getDiscoveryKey(recRehoster.ownKey)
+      expect(recRehoster.servedKeys).to.deep.have.same.members([
+        discoveryKey(recCore.key),
+        discoveryKey(recCore2.key),
+        discoveryKey(rehoster.ownKey),
+        discoveryKey(core.key),
+        discoveryKey(recRehoster.ownKey)
       ])
     })
 
@@ -348,7 +348,7 @@ describe('Rehoster tests', function () {
 
       await wait(100)
 
-      // Mock the runWather method so it crashes on the next diff
+      // Mock the runWatcher method so it crashes on the next diff
       const stub = sinon.stub(recRehoster.rootNode.children.get(asHex(rehoster.ownKey)), '_consumeDiffStream')
       stub.throws(new Error('Unexpected error while consuming watcher'))
       await rehoster.add(recCore.key)
@@ -372,22 +372,22 @@ describe('Rehoster tests', function () {
 
       await wait(100)
 
-      expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
-        getDiscoveryKey(recCore.key),
-        getDiscoveryKey(recCore2.key),
-        getDiscoveryKey(rehoster.ownKey),
-        getDiscoveryKey(core.key),
-        getDiscoveryKey(recRehoster.ownKey),
-        getDiscoveryKey(superRehoster.ownKey)
+      expect(superRehoster.servedKeys).to.deep.have.same.members([
+        discoveryKey(recCore.key),
+        discoveryKey(recCore2.key),
+        discoveryKey(rehoster.ownKey),
+        discoveryKey(core.key),
+        discoveryKey(recRehoster.ownKey),
+        discoveryKey(superRehoster.ownKey)
       ])
 
       await recRehoster.delete(rehoster.ownKey)
       await wait(100)
 
-      expect(superRehoster.servedDiscoveryKeys).to.deep.have.same.members([
-        getDiscoveryKey(core.key),
-        getDiscoveryKey(recRehoster.ownKey),
-        getDiscoveryKey(superRehoster.ownKey)
+      expect(superRehoster.servedKeys).to.deep.have.same.members([
+        discoveryKey(core.key),
+        discoveryKey(recRehoster.ownKey),
+        discoveryKey(superRehoster.ownKey)
       ])
     })
 
@@ -396,7 +396,7 @@ describe('Rehoster tests', function () {
       await rehoster.add(rehoster.ownKey)
       await new Promise((resolve) => setTimeout(resolve, 50))
 
-      expect(rehoster.swarmInterface._servedCounters.get(getDiscoveryKey(rehoster.ownKey))).to.equal(1)
+      expect(rehoster.swarmManager._servedCounters.get(getDiscoveryKey(rehoster.ownKey))).to.equal(1)
     })
 
     it('Removes a core hosted twice only when removed in both places', async function () {
@@ -406,20 +406,20 @@ describe('Rehoster tests', function () {
 
       await wait(100)
 
-      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(2)
+      expect(recRehoster.swarmManager._servedCounters.get(getDiscoveryKey(core.key))).to.equal(2)
 
       await recRehoster.delete(core.key)
       await wait(100)
-      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(1)
+      expect(recRehoster.swarmManager._servedCounters.get(getDiscoveryKey(core.key))).to.equal(1)
 
       await rehoster.delete(core.key)
       await wait(100)
-      expect(recRehoster.swarmInterface._servedCounters.get(getDiscoveryKey(core.key))).to.equal(0)
-      expect(recRehoster.swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
-        getDiscoveryKey(recRehoster.ownKey),
-        getDiscoveryKey(rehoster.ownKey),
-        getDiscoveryKey(recCore.key),
-        getDiscoveryKey(recCore2.key)
+      expect(recRehoster.swarmManager._servedCounters.get(getDiscoveryKey(core.key))).to.equal(0)
+      expect(recRehoster.swarmManager.servedKeys).to.deep.have.same.members([
+        discoveryKey(recRehoster.ownKey),
+        discoveryKey(rehoster.ownKey),
+        discoveryKey(recCore.key),
+        discoveryKey(recCore2.key)
       ])
     })
   })
