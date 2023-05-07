@@ -10,7 +10,7 @@ const { once } = require('events')
 const goodbye = require('graceful-goodbye')
 
 const Rehoster = require('.')
-const SwarmInterface = require('./lib/swarm-interface')
+const SwarmManager = require('swarm-manager')
 
 const DIR = 'test-stores/'
 
@@ -39,22 +39,22 @@ function getSwarm () {
 async function runIntegrationTest (testnet) {
   bootstrap = testnet.bootstrap
 
-  const peer1 = new SwarmInterface(getSwarm(), new Corestore(PEER1_LOC))
-  const driveP1 = await getDrive(peer1.corestore)
-  const coreP1 = peer1.corestore.get({ name: 'coreP1' })
+  const peer1 = new SwarmManager(getSwarm(), new Corestore(PEER1_LOC))
+  const driveP1 = await getDrive(peer1.store)
+  const coreP1 = peer1.store.get({ name: 'coreP1' })
   await coreP1.append('block0')
 
-  const peer2 = new SwarmInterface(getSwarm(), new Corestore(PEER2_LOC))
+  const peer2 = new SwarmManager(getSwarm(), new Corestore(PEER2_LOC))
 
-  const driveP2 = await getDrive(peer2.corestore)
-  const beeP2 = new Hyperbee(peer1.corestore.get({ name: 'beeP2' }))
+  const driveP2 = await getDrive(peer2.store)
+  const beeP2 = new Hyperbee(peer1.store.get({ name: 'beeP2' }))
   await beeP2.put('some', 'entry')
 
   // 1) *******************************************************************
   console.log('1) Peer1 and Reh1 online')
 
-  peer1.serveCore(coreP1.discoveryKey)
-  peer1.serveCore(driveP1.discoveryKey)
+  peer1.serve(coreP1.discoveryKey)
+  peer1.serve(driveP1.discoveryKey)
   // peer1.swarm.on('connection', (conn, info) => console.debug('Peer1 connected with', info.publicKey.toString('hex')))
   await peer1.swarm.flush()
 
@@ -72,7 +72,7 @@ async function runIntegrationTest (testnet) {
   // 2) ********************************************************************
   console.log('2) Peer1 disappears--someone requests drive1 and drive2')
   await peer1.close()
-  await peer1.corestore.close() // Not managed by hyperswarm--refactor?
+  await peer1.store.close() // Not managed by hyperswarm--refactor?
   await reh1.swarm.flush()
 
   if (await canDownloadCore(driveP1.key)) {
@@ -127,15 +127,15 @@ async function runIntegrationTest (testnet) {
   console.log('5) Peer1 and peer2 come online, then leave again')
   await reh4.swarm.flush()
 
-  const renewedPeer1 = new SwarmInterface(getSwarm(), new Corestore(PEER1_LOC))
-  renewedPeer1.serveCore(coreP1.discoveryKey)
-  renewedPeer1.serveCore(driveP1.discoveryKey)
+  const renewedPeer1 = new SwarmManager(getSwarm(), new Corestore(PEER1_LOC))
+  renewedPeer1.serve(coreP1.discoveryKey)
+  renewedPeer1.serve(driveP1.discoveryKey)
 
-  peer2.serveCore(beeP2.feed.discoveryKey)
-  peer2.serveCore(driveP2.discoveryKey)
+  peer2.serve(beeP2.feed.discoveryKey)
+  peer2.serve(driveP2.discoveryKey)
 
   const peersConnected = [once(renewedPeer1.swarm, 'connection'), once(peer2.swarm, 'connection')]
-  const reopenedDriveP1 = new Hyperdrive(renewedPeer1.corestore)
+  const reopenedDriveP1 = new Hyperdrive(renewedPeer1.store)
   await reopenedDriveP1.ready()
   if (!reopenedDriveP1.core.length > 0) throw new Error('Incorrect drive?')
 
@@ -250,14 +250,14 @@ async function wait (ms = MS_WAIT) {
 }
 
 function getRandomPeer () {
-  return new SwarmInterface(getSwarm(), new Corestore(ram))
+  return new SwarmManager(getSwarm(), new Corestore(ram))
 }
 
 async function canDownloadCore (pubKey, timeout = MS_WAIT) {
   const peer = getRandomPeer()
-  const core = peer.corestore.get({ key: pubKey })
+  const core = peer.store.get({ key: pubKey })
   await core.ready()
-  peer.requestCore(core.discoveryKey)
+  peer.request(core.discoveryKey)
 
   try {
     await core.get(0, { timeout })
@@ -273,12 +273,12 @@ async function canDownloadCore (pubKey, timeout = MS_WAIT) {
 
 async function getDriveEntry (pubKey, location) {
   const peer = getRandomPeer()
-  const drive = new Hyperdrive(peer.corestore, pubKey)
+  const drive = new Hyperdrive(peer.store, pubKey)
   await drive.ready()
   const connected = once(peer.swarm, 'connection')
   const ready = once(drive.core, 'append')
 
-  peer.requestCore(drive.discoveryKey)
+  peer.request(drive.discoveryKey)
   await connected
   await ready
 

@@ -1,6 +1,7 @@
 const Corestore = require('corestore')
 const Rehoster = require('./index.js')
 const ram = require('random-access-memory')
+const { asHex } = require('hexkey-utils')
 
 const corestoreLoc = ram // './my-store' for persistence on the specified file
 
@@ -14,7 +15,7 @@ async function main () {
   await rehoster.add(someCore.key)
 
   console.log('rehoster served discovery keys:')
-  console.log(rehoster.servedDiscoveryKeys)
+  console.log(rehoster.servedKeys.map(k => asHex(k)))
   // Note: a rehoster always serves itself, so will log 2 keys
 
   console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
@@ -27,7 +28,7 @@ async function main () {
   // In practice you don't need to worry about this, it just helps solve a race condition
   // (if swarm2 starts looking before swarm1 fully published its topics, it can miss them
   // and will retry only after quite a while)
-  await rehoster.swarmInterface.swarm.flush()
+  await rehoster.swarmManager.swarm.flush()
 
   await rerehoster.add(rehoster.ownKey)
 
@@ -36,7 +37,7 @@ async function main () {
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
   console.log('rerehoster served discovery keys:')
-  console.log(rerehoster.servedDiscoveryKeys) // 3 keys: its own, the rehoster's and what that one hosts
+  console.log(rerehoster.servedKeys.map(k => asHex(k))) // 3 keys: its own, the rehoster's and what that one hosts
 
   console.log('\nThe rehoster downloads any new blocks added to the hypercore')
   someCore.on('append', () => console.log('Appended to local core--new length:', someCore.length))
@@ -54,8 +55,8 @@ async function main () {
     await rehoster.delete(someCore.key)
 
     await new Promise((resolve) => setTimeout(resolve, 3000)) // Give some time to update
-    console.log('rehoster:', rehoster.servedDiscoveryKeys) // Should only be 1
-    console.log('rerehoster:', rerehoster.servedDiscoveryKeys) // Should only be 2
+    console.log('rehoster:', rehoster.servedKeys.map(k => asHex(k))) // Should only be 1
+    console.log('rerehoster:', rerehoster.servedKeys.map(k => asHex(k))) // Should only be 2
 
     await Promise.all([rehoster.close(), rerehoster.close()])
   }

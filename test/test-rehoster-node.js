@@ -2,14 +2,14 @@ const { expect } = require('chai')
 const b4a = require('b4a')
 const { hyperInterfaceFactory, testnetFactory } = require('./fixtures.js')
 const RehosterNode = require('../lib/rehoster-node.js')
-const { asHex, getDiscoveryKey } = require('hexkey-utils')
 const Hyperdrive = require('hyperdrive')
 const { ensureIsRehoster, isRehoster } = require('../lib/utils.js')
 const { once } = require('events')
+const { discoveryKey } = require('hypercore-crypto')
 
 describe('RehosterNode tests', function () {
   let bee
-  let swarmInterface, swarmInterface2
+  let swarmManager, swarmManager2
   let hyperInterface, hyperInterface2
   let testnet
 
@@ -26,8 +26,8 @@ describe('RehosterNode tests', function () {
       hyperInterface2.corestore
     )
 
-    swarmInterface2 = testnet.swarmInterface2
-    swarmInterface = testnet.swarmInterface1
+    swarmManager2 = testnet.swarmManager2
+    swarmManager = testnet.swarmManager1
 
     bee = await hyperInterface.createBee('testbee')
     await ensureIsRehoster(bee) // Adds correct header
@@ -44,10 +44,10 @@ describe('RehosterNode tests', function () {
 
   it('Ready only hosts core itself if not a hyperbee', async function () {
     const core = await hyperInterface.createCore('testcore')
-    const node = new RehosterNode({ pubKey: core.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: core.key, swarmManager })
     await node.ready()
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [asHex(core.discoveryKey)]
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [core.discoveryKey]
     )
   })
 
@@ -55,34 +55,34 @@ describe('RehosterNode tests', function () {
     await bee.put(key2)
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [bee.feed.discoveryKey, getDiscoveryKey(key2), getDiscoveryKey(key)].map(k => asHex(k))
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, discoveryKey(key2), discoveryKey(key)]
     )
   })
 
   it('Ready adds a handler which processes additional bee entries added later', async function () {
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [bee.feed.discoveryKey, getDiscoveryKey(key)].map(k => asHex(k))
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, discoveryKey(key)]
     )
 
     await bee.put(key2)
     await new Promise((resolve) => setTimeout(resolve, 1)) // Unsure if always sufficient time
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [bee.feed.discoveryKey, getDiscoveryKey(key), getDiscoveryKey(key2)].map(k => asHex(k))
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, discoveryKey(key), discoveryKey(key2)]
     )
 
     await bee.put(key3)
     await new Promise((resolve) => setTimeout(resolve, 1))
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [asHex(bee.feed.discoveryKey), getDiscoveryKey(key), getDiscoveryKey(key2), getDiscoveryKey(key3)]
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, discoveryKey(key), discoveryKey(key2), discoveryKey(key3)]
     )
   })
 
@@ -94,40 +94,40 @@ describe('RehosterNode tests', function () {
     const sub = bee.sub('\x00\x00\x00rehoster_key')
     await sub.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.core.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.core.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [bee.feed.discoveryKey, getDiscoveryKey(key)].map(k => asHex(k))
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, discoveryKey(key)]
     )
 
     // Also those added later
     await sub.put(key2)
     await new Promise((resolve) => setTimeout(resolve, 50))
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
+    expect(swarmManager.servedKeys).to.deep.have.same.members([
       bee.feed.discoveryKey,
-      getDiscoveryKey(key),
-      getDiscoveryKey(key2)
-    ].map(k => asHex(k)))
+      discoveryKey(key),
+      discoveryKey(key2)
+    ])
   })
 
   it('makes a hyperdrive contentKey available, but without announcing', async function () {
-    const drive = new Hyperdrive(swarmInterface.corestore.namespace('drive'))
+    const drive = new Hyperdrive(swarmManager.store.namespace('drive'))
     await drive.put('/file', 'something')
     await bee.put(drive.key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members(
-      [bee.feed.discoveryKey, drive.discoveryKey].map(k => asHex(k))
+    expect(swarmManager.servedKeys).to.deep.have.same.members(
+      [bee.feed.discoveryKey, drive.discoveryKey]
     )
 
-    expect(swarmInterface.replicatedDiscoveryKeys).to.deep.have.same.members(
+    expect(swarmManager.keys).to.deep.have.same.members(
       [
-        bee.feed.discoveryKey, drive.discoveryKey, getDiscoveryKey(drive.contentKey)
-      ].map(k => asHex(k))
+        bee.feed.discoveryKey, drive.discoveryKey, discoveryKey(drive.contentKey)
+      ]
     )
   })
 
@@ -140,13 +140,13 @@ describe('RehosterNode tests', function () {
     unavailableCore.append('offline entry')
     await bee.put(unavailableCore.key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      asHex(bee.feed.discoveryKey),
-      getDiscoveryKey(unavailableCore.key)
+    expect(swarmManager.servedKeys).to.deep.have.same.members([
+      discoveryKey(core.key),
+      bee.feed.discoveryKey,
+      discoveryKey(unavailableCore.key)
     ])
 
     const readCore = await hyperInterface.readCore(
@@ -162,32 +162,32 @@ describe('RehosterNode tests', function () {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(entry).to.eq(undefined)
 
-    await swarmInterface.swarm.flush() // To avoid race conditions
-    await swarmInterface2.serveCore(unavailableCore.discoveryKey)
-    await swarmInterface2.swarm.flush()
+    await swarmManager.swarm.flush() // To avoid race conditions
+    await swarmManager2.serve(unavailableCore.discoveryKey)
+    await swarmManager2.swarm.flush()
 
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(entry).to.eq('offline entry')
-    expect(swarmInterface.servedDiscoveryKeys).to.deep.have.same.members([
-      getDiscoveryKey(core.key),
-      asHex(bee.feed.discoveryKey),
-      getDiscoveryKey(unavailableCore.key)
+    expect(swarmManager.servedKeys).to.deep.have.same.members([
+      discoveryKey(core.key),
+      bee.feed.discoveryKey,
+      discoveryKey(unavailableCore.key)
     ])
   })
 
   it('Can close immediately after calling ready', async function () {
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
     node.ready().catch(e => { throw e })
     await node.close()
 
-    expect(swarmInterface.servedDiscoveryKeys.length).to.equal(0)
+    expect(swarmManager.servedKeys.length).to.equal(0)
     expect(node.closed).to.eq(true)
   })
 
   it('Recursively closes child nodes', async function () {
-    const drive = new Hyperdrive(swarmInterface.corestore.namespace('drive'))
+    const drive = new Hyperdrive(swarmManager.store.namespace('drive'))
     await drive.put('/file', 'something')
     await bee.put(drive.key)
     await bee.put(key)
@@ -196,16 +196,16 @@ describe('RehosterNode tests', function () {
     await ensureIsRehoster(otherBee)
     await otherBee.put(bee.feed.key)
 
-    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmInterface })
+    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager })
     await node.ready()
 
-    expect(swarmInterface.replicatedDiscoveryKeys).to.deep.have.same.members([
+    expect(swarmManager.keys).to.deep.have.same.members([
       bee.feed.discoveryKey,
       otherBee.feed.discoveryKey,
-      getDiscoveryKey(key),
+      discoveryKey(key),
       drive.discoveryKey,
-      getDiscoveryKey(drive.contentKey)
-    ].map(k => asHex(k)))
+      discoveryKey(drive.contentKey)
+    ])
 
     const allSubNodes = _getAllSubNodes(node)
     expect(allSubNodes.length).to.eq(1 + 2 + 1) // the bee, its 2 kids (key and drive.key) and the drive's kid
@@ -213,7 +213,7 @@ describe('RehosterNode tests', function () {
 
     await node.close()
     expect(allSubNodes.filter(c => c.closed).length).to.equal(allSubNodes.length)
-    expect(swarmInterface.replicatedDiscoveryKeys.length).to.equal(0)
+    expect(swarmManager.keys.length).to.equal(0)
   })
 
   it('No race-condition on close when running recursive logic in background', async function () {
@@ -223,7 +223,7 @@ describe('RehosterNode tests', function () {
     await ensureIsRehoster(otherBee)
     await otherBee.put(bee.feed.key)
 
-    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmInterface: swarmInterface2 })
+    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager: swarmManager2 })
     await node.ready()
 
     expect(_getAllSubNodes(node).length).to.eq(2) // own (otherBee's) key + bee's key
@@ -233,8 +233,8 @@ describe('RehosterNode tests', function () {
 
     const areConnected = once(readCore, 'append')
 
-    await node.swarmInterface.swarm.flush() // Avoid race conditions on swarming
-    await swarmInterface.serveCore(bee.feed.discoveryKey)
+    await node.swarmManager.swarm.flush() // Avoid race conditions on swarming
+    await swarmManager.serve(bee.feed.discoveryKey)
 
     await areConnected
     // The change is propagating, but bee's child is not yet added
@@ -246,7 +246,7 @@ describe('RehosterNode tests', function () {
     expect(nodes.length).to.eq(3) // change was propagated--bee's child added
 
     expect(nodes.filter(c => c.closed).length).to.equal(nodes.length)
-    expect(swarmInterface2.replicatedDiscoveryKeys.length).to.eq(0)
+    expect(swarmManager2.requestedKeys.length).to.eq(0)
   })
 })
 
