@@ -91,7 +91,12 @@ describe('RehosterNode tests', function () {
     await bee.put('some', 'thing')
     expect(await isRehoster(bee)).to.equal(false)
 
+    // These should not yield, as they are not in the sub
+    await bee.put('\x00\x00\x00rehoster_kexBefore', key3)
+    await bee.put('\x00\x00\x00rehoster_key\x01After', key3)
+
     const sub = bee.sub('\x00\x00\x00rehoster_key')
+
     await sub.put(key)
 
     const node = new RehosterNode({ pubKey: bee.core.key, swarmManager })
