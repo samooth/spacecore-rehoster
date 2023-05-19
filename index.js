@@ -1,8 +1,6 @@
-const Hyperswarm = require('hyperswarm')
 const Hyperbee = require('hyperbee')
 const ReadyResource = require('ready-resource')
 
-const SwarmManager = require('swarm-manager')
 const RehosterNode = require('./lib/rehoster-node.js')
 const DbInterface = require('./lib/db-interface.js')
 const { METADATA_SUB } = require('./lib/constants.js')
@@ -10,14 +8,17 @@ const { METADATA_SUB } = require('./lib/constants.js')
 const DEFAULT_BEE_NAME = 'rehoster-bee'
 
 class Rehoster extends ReadyResource {
-  constructor (corestore, { bee = undefined, beeName = DEFAULT_BEE_NAME, swarm = undefined } = {}) {
+  constructor (corestore, swarmManager, {
+    bee = undefined,
+    beeName = DEFAULT_BEE_NAME
+  } = {}) {
     super()
+
+    this.swarmManager = swarmManager
+    this.corestore = corestore
 
     bee ??= new Hyperbee(corestore.get({ name: beeName }))
     this.dbInterface = new DbInterface(bee)
-
-    swarm ??= new Hyperswarm()
-    this.swarmManager = new SwarmManager(swarm, corestore)
 
     this.rootNode = null
   }
@@ -32,6 +33,7 @@ class Rehoster extends ReadyResource {
     this.rootNode = new RehosterNode({
       pubKey: this.ownKey,
       swarmManager: this.swarmManager,
+      corestore: this.corestore,
       onInvalidKey: (args) => this.emit('invalidKey', args)
     })
     await this.rootNode.ready()
@@ -40,10 +42,6 @@ class Rehoster extends ReadyResource {
 
   get bee () {
     return this.dbInterface.bee
-  }
-
-  get corestore () {
-    return this.swarmManager.store
   }
 
   get swarm () {
@@ -79,7 +77,6 @@ class Rehoster extends ReadyResource {
   async _close () {
     await this.rootNode.close()
     await this.dbInterface.close()
-    await this.swarmManager.close()
     await this.corestore.close()
   }
 }

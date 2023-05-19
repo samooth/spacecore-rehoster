@@ -4,6 +4,7 @@ const Hyperswarm = require('hyperswarm')
 const Corestore = require('corestore')
 const ram = require('random-access-memory')
 const HyperInterface = require('hyperpubee-hyper-interface')
+const safetyCatch = require('safety-catch')
 
 const DbInterface = require('../lib/db-interface.js')
 
@@ -11,14 +12,19 @@ async function testnetFactory (corestore1, corestore2) {
   const testnet = await createTestnet(3)
   const bootstrap = testnet.bootstrap
 
-  const swarmManager1 = new SwarmManager(
-    new Hyperswarm({ bootstrap }),
-    corestore1
-  )
-  const swarmManager2 = new SwarmManager(
-    new Hyperswarm({ bootstrap }),
-    corestore2
-  )
+  const swarm1 = new Hyperswarm({ bootstrap })
+  swarm1.on('connection', (socket) => {
+    corestore1.replicate(socket)
+    socket.on('error', safetyCatch)
+  })
+  const swarm2 = new Hyperswarm({ bootstrap })
+  swarm2.on('connection', (socket) => {
+    corestore2.replicate(socket)
+    socket.on('error', safetyCatch)
+  })
+
+  const swarmManager1 = new SwarmManager(swarm1, corestore1)
+  const swarmManager2 = new SwarmManager(swarm2, corestore2)
 
   async function destroyTestnetFactory () {
     await Promise.all([

@@ -9,14 +9,17 @@ const Hyperdrive = require('hyperdrive')
 const { discoveryKey } = require('hypercore-crypto')
 const Rehoster = require('../index.js')
 const { testnetFactory } = require('./fixtures.js')
+const SwarmManager = require('swarm-manager')
 
 describe('Rehoster tests', function () {
   let testnet
   let rehoster
   let initNrCores
-  let corestore, corestore2, swarm
+  let corestore, corestore2
   let swarmManager2
+  let swarmManager
   let core
+  let swarm
 
   this.beforeEach(async function () {
     corestore = new Corestore(ram)
@@ -28,13 +31,13 @@ describe('Rehoster tests', function () {
     )
 
     swarmManager2 = testnet.swarmManager2
+    swarmManager = testnet.swarmManager1
 
     swarm = testnet.swarmManager1.swarm
-
     const bee = new Hyperbee(corestore.get({ name: 'mybee' }))
     await bee.ready()
 
-    rehoster = new Rehoster(corestore, { swarm })
+    rehoster = new Rehoster(corestore, swarmManager)
     await rehoster.ready()
 
     initNrCores = rehoster.corestore.cores.size
@@ -133,7 +136,7 @@ describe('Rehoster tests', function () {
     await rehoster.swarmManager.swarm.flush()
 
     await swarmManager2.request(discoveryKey(rehoster.ownKey))
-    const readRehoster = new Rehoster(corestore, { swarm: swarmManager2.swarm })
+    const readRehoster = new Rehoster(corestore, swarmManager2)
     await readRehoster.ready()
 
     expect(rehoster.servedKeys).to.deep.have.same.members(
@@ -154,7 +157,7 @@ describe('Rehoster tests', function () {
     await rehoster.swarmManager.swarm.flush()
 
     await swarmManager2.request(discoveryKey(rehoster.ownKey))
-    const readRehoster = new Rehoster(corestore2, { bee: aBee, swarm: swarmManager2.swarm })
+    const readRehoster = new Rehoster(corestore2, swarmManager2, { bee: aBee })
     await nodeAssert.rejects(
       readRehoster.ready(),
       /Not a rehoster/
@@ -177,7 +180,7 @@ describe('Rehoster tests', function () {
     const superBee = new Hyperbee(superCore)
     await superBee.ready()
 
-    const recRehoster = new Rehoster(corestore2, { swarm: swarmManager2.swarm })
+    const recRehoster = new Rehoster(corestore2, swarmManager2)
 
     await recRehoster.add(core.key)
     await recRehoster.add(rehoster.ownKey)
@@ -323,7 +326,7 @@ describe('Rehoster tests', function () {
       superBee = new Hyperbee(superCore)
       await superBee.ready()
 
-      recRehoster = new Rehoster(corestore2, { bee: superBee, swarm: swarmManager2.swarm })
+      recRehoster = new Rehoster(corestore2, swarmManager2, { bee: superBee })
       await rehoster.swarm.flush()
     })
 
@@ -367,7 +370,10 @@ describe('Rehoster tests', function () {
       const superCore = corestore.get({ name: 'Core for superrehoster' })
       const bee3 = new Hyperbee(superCore)
 
-      const superRehoster = new Rehoster(corestore, { bee: bee3, swarm })
+      // Note: this reuses the swarm for a new SwarmManager,
+      // which is ugly, but it's an easy hack here
+      const superMgr = new SwarmManager(swarm)
+      const superRehoster = new Rehoster(corestore, superMgr, { bee: bee3 })
       await superRehoster.add(recRehoster.ownKey)
 
       await wait(100)
@@ -389,6 +395,8 @@ describe('Rehoster tests', function () {
         discoveryKey(recRehoster.ownKey),
         discoveryKey(superRehoster.ownKey)
       ])
+
+      await superRehoster.close()
     })
 
     it('Does not recurse eternally', async function () {

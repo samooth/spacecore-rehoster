@@ -22,23 +22,20 @@ It is possible to turn a normal Hyperbee into a rehoster by adding keys to the s
 
 Rehosters can host one other, in which case they will host the union of all their individual cores.
 
-A Rehoster uses a corestore to store the hypercores on disk.
-
-The db (hyperbee) containing the hosted hypercores is also stored in the corestore.
-
 ## Install
 
 `npm i hypercore-rehoster`
 
 ## API
 
-### `const rehoster = new Rehoster(corestore, { bee, beeName, swarm})`
+### `const rehoster = new Rehoster(corestore, swarmManager, { bee, beeName })`
 Initialises a rehoster.
 
-if no swarm is specified, a new one with default options will be created.
+The `corestore` is managed by the rehoster (closes when the rehoster closes),
+but the `swarmManager` is not.
 
 If a bee is passed, that bee will be used as database.
-If not, the bee will be opened from the corestore, based on the beeName (or the default name if none is provided).
+If not, the bee will be opened from the corestore, based on the `beeName` (or the default name if none is provided).
 
 Note when passing a bee: to be able to add/delete cores, the corestore should have write rights on the bee (it should have been created with that corestore).
 
@@ -50,6 +47,7 @@ This allows arbitrary Hyperbees to behave as a rehoster.
 
 ### `await rehoster.ready()`
 Set up the the rehoster, so it starts downloading and serving all the keys it contains.
+
 ### `await rehoster.add(key)`
 Add a new key to be rehosted (any valid key format can be used).
 
