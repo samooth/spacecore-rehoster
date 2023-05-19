@@ -44,7 +44,7 @@ describe('RehosterNode tests', function () {
 
   it('Ready only hosts core itself if not a hyperbee', async function () {
     const core = await hyperInterface.createCore('testcore')
-    const node = new RehosterNode({ pubKey: core.key, swarmManager })
+    const node = new RehosterNode({ pubKey: core.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
     expect(swarmManager.servedKeys).to.deep.have.same.members(
       [core.discoveryKey]
@@ -55,7 +55,7 @@ describe('RehosterNode tests', function () {
     await bee.put(key2)
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.servedKeys).to.deep.have.same.members(
@@ -66,7 +66,7 @@ describe('RehosterNode tests', function () {
   it('Ready adds a handler which processes additional bee entries added later', async function () {
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.servedKeys).to.deep.have.same.members(
@@ -99,7 +99,7 @@ describe('RehosterNode tests', function () {
 
     await sub.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.core.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.core.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.servedKeys).to.deep.have.same.members(
@@ -118,11 +118,11 @@ describe('RehosterNode tests', function () {
   })
 
   it('makes a hyperdrive contentKey available, but without announcing', async function () {
-    const drive = new Hyperdrive(swarmManager.store.namespace('drive'))
+    const drive = new Hyperdrive(hyperInterface.corestore.namespace('drive'))
     await drive.put('/file', 'something')
     await bee.put(drive.key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.servedKeys).to.deep.have.same.members(
@@ -145,7 +145,7 @@ describe('RehosterNode tests', function () {
     unavailableCore.append('offline entry')
     await bee.put(unavailableCore.key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.servedKeys).to.deep.have.same.members([
@@ -183,7 +183,7 @@ describe('RehosterNode tests', function () {
   it('Can close immediately after calling ready', async function () {
     await bee.put(key)
 
-    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     node.ready().catch(e => { throw e })
     await node.close()
 
@@ -192,7 +192,7 @@ describe('RehosterNode tests', function () {
   })
 
   it('Recursively closes child nodes', async function () {
-    const drive = new Hyperdrive(swarmManager.store.namespace('drive'))
+    const drive = new Hyperdrive(hyperInterface.corestore.namespace('drive'))
     await drive.put('/file', 'something')
     await bee.put(drive.key)
     await bee.put(key)
@@ -201,7 +201,7 @@ describe('RehosterNode tests', function () {
     await ensureIsRehoster(otherBee)
     await otherBee.put(bee.feed.key)
 
-    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager })
+    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager, corestore: hyperInterface.corestore })
     await node.ready()
 
     expect(swarmManager.keys).to.deep.have.same.members([
@@ -228,7 +228,7 @@ describe('RehosterNode tests', function () {
     await ensureIsRehoster(otherBee)
     await otherBee.put(bee.feed.key)
 
-    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager: swarmManager2 })
+    const node = new RehosterNode({ pubKey: otherBee.feed.key, swarmManager: swarmManager2, corestore: hyperInterface2.corestore })
     await node.ready()
 
     expect(_getAllSubNodes(node).length).to.eq(2) // own (otherBee's) key + bee's key

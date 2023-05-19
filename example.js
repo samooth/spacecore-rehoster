@@ -2,13 +2,14 @@ const Corestore = require('corestore')
 const Rehoster = require('./index.js')
 const ram = require('random-access-memory')
 const { asHex } = require('hexkey-utils')
+const SwarmManager = require('swarm-manager')
+const Hyperswarm = require('hyperswarm')
 
 const corestoreLoc = ram // './my-store' for persistence on the specified file
 
 async function main () {
   const corestore = new Corestore(corestoreLoc)
-
-  const rehoster = new Rehoster(corestore)
+  const rehoster = getRehoster(corestore, new Hyperswarm())
 
   const someCore = corestore.get({ name: 'mycore' })
   await someCore.ready()
@@ -21,8 +22,7 @@ async function main () {
   console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
 
   const corestore2 = new Corestore(ram)
-
-  const rerehoster = new Rehoster(corestore2)
+  const rerehoster = getRehoster(corestore2, new Hyperswarm())
 
   // This ensures the other rehoster already flushed its topics to the swarm
   // In practice you don't need to worry about this, it just helps solve a race condition
@@ -59,7 +59,21 @@ async function main () {
     console.log('rerehoster:', rerehoster.servedKeys.map(k => asHex(k))) // Should only be 2
 
     await Promise.all([rehoster.close(), rerehoster.close()])
+    await Promise.all([rehoster.swarmManager.close(), rerehoster.swarmManager.close()])
   }
+}
+
+function getRehoster (store, swarm) {
+  swarm.on('connection', (socket) => {
+    store.replicate(socket)
+    socket.on('error', () => {})
+  })
+
+  const swarmManager = new SwarmManager(swarm)
+  return new Rehoster(
+    store.namespace('rehoster'),
+    swarmManager
+  )
 }
 
 main()
