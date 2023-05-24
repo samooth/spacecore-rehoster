@@ -1,6 +1,9 @@
 image: node:18
 
 cache:
+  key:
+    files:
+      - package.json
   paths:
     - node_modules/
 
