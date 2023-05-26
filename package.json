@@ -53,6 +53,6 @@
     "hyperbee": "^2.11.1",
     "ready-resource": "^1.0.0",
     "safety-catch": "^1.0.2",
-    "sub-encoder": "^2.1.0"
+    "sub-encoder": "^2.1.1"
   }
 }
