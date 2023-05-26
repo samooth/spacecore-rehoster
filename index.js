@@ -3,7 +3,7 @@ const ReadyResource = require('ready-resource')
 
 const RehosterNode = require('./lib/rehoster-node.js')
 const DbInterface = require('./lib/db-interface.js')
-const { METADATA_SUB } = require('./lib/constants.js')
+const { METADATA_SUB, ENCODINGS } = require('./lib/constants.js')
 
 const DEFAULT_BEE_NAME = 'rehoster-bee'
 
@@ -17,7 +17,10 @@ class Rehoster extends ReadyResource {
     this.swarmManager = swarmManager
     this.corestore = corestore
 
-    bee ??= new Hyperbee(corestore.get({ name: beeName }))
+    bee ??= new Hyperbee(
+      corestore.get({ name: beeName }),
+      ENCODINGS
+    )
     this.dbInterface = new DbInterface(bee)
 
     this.rootNode = null
@@ -52,14 +55,18 @@ class Rehoster extends ReadyResource {
     return this.dbInterface.bee.feed.key
   }
 
-  async add (key) {
+  async add (key, value = undefined) {
     if (!this.opened) await this.ready()
-    await this.dbInterface.addKey(key)
+    await this.dbInterface.addKey(key, value)
   }
 
   async delete (key) {
     if (!this.opened) await this.ready()
     await this.dbInterface.removeKey(key)
+  }
+
+  async get (key) {
+    return await this.dbInterface.getKey(key)
   }
 
   get servedKeys () {

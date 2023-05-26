@@ -6,6 +6,7 @@ const Hyperdrive = require('hyperdrive')
 const { ensureIsRehoster, isRehoster } = require('../lib/utils.js')
 const { once } = require('events')
 const { discoveryKey } = require('hypercore-crypto')
+const { asHex } = require('hexkey-utils')
 
 describe('RehosterNode tests', function () {
   let bee
@@ -134,6 +135,19 @@ describe('RehosterNode tests', function () {
         bee.feed.discoveryKey, drive.discoveryKey, discoveryKey(drive.contentKey)
       ]
     )
+  })
+
+  it('Hyperdrive blobs have an info value indicating they are a secondary core', async function () {
+    const drive = new Hyperdrive(hyperInterface.corestore.namespace('drive'))
+    await drive.put('/file', 'something')
+    await bee.put(drive.key)
+
+    const node = new RehosterNode({ pubKey: bee.feed.key, swarmManager, corestore: hyperInterface.corestore })
+    await node.ready()
+
+    const blobsNode = node.children.get(asHex(drive.key)).secondaryCore
+    expect(blobsNode.value).to.deep.equal(
+      { info: `Secondary core of ${asHex(drive.key)}` })
   })
 
   it('Also processes keys it cannot find, and connects to + downloads them when they come online', async function () {
