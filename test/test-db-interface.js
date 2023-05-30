@@ -1,4 +1,3 @@
-
 const { strict: nodeAssert } = require('assert')
 const { expect } = require('chai')
 

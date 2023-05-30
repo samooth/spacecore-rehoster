@@ -4,7 +4,8 @@
   "description": "Help keep the hypercores of your choice available",
   "main": "index.js",
   "scripts": {
-    "test": "standard && c8 --reporter=text mocha"
+    "test": "standard && c8 --reporter=text mocha",
+    "integration": "node integration-test.js"
   },
   "repository": {
     "type": "git",
