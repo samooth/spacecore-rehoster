@@ -343,7 +343,7 @@ describe('Rehoster tests', function () {
       await rehoster.add(recCore2.key)
 
       const superCore = corestore2.get({ name: 'bee2-core' })
-      superBee = new Hyperbee(superCore)
+      superBee = new Hyperbee(superCore, { valueEncoding: 'json' })
       await superBee.ready()
 
       recRehoster = new Rehoster(corestore2, swarmManager2, { bee: superBee })
@@ -388,7 +388,7 @@ describe('Rehoster tests', function () {
       await recRehoster.add(rehoster.ownKey)
 
       const superCore = corestore.get({ name: 'Core for superrehoster' })
-      const bee3 = new Hyperbee(superCore)
+      const bee3 = new Hyperbee(superCore, { valueEncoding: 'json' })
 
       // Note: this reuses the swarm for a new SwarmManager,
       // which is ugly, but it's an easy hack here
