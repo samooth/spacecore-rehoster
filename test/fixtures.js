@@ -55,7 +55,10 @@ async function hyperInterfaceFactory () {
 async function dbInterfaceFactory (hyperInterface) {
   hyperInterface ??= await hyperInterfaceFactory()
 
-  const bee = await hyperInterface.createBee(`${Math.random()}`)
+  const bee = await hyperInterface.createBee(
+    `${Math.random()}`,
+    { valueEncoding: 'json' }
+  )
   return new DbInterface(bee)
 }
 

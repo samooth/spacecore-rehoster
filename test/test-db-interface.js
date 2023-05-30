@@ -55,6 +55,17 @@ describe('Db-interface tests', function () {
     expect(new Set(keys)).to.deep.equal(new Set([key, key2, key3]))
   })
 
+  it('Can get the entry stream', async function () {
+    const key2 = 'b'.repeat(64)
+    const key3 = 'c'.repeat(64)
+    await dbInterface.addKey(key)
+    await dbInterface.addKey(key2)
+    await dbInterface.addKey(key3, { info: 'my key3' })
+
+    const entries = await consume(dbInterface.getEntryStream())
+    expect(new Set(entries)).to.deep.equal(new Set([{ key }, { key: key2 }, { key: key3, info: 'my key3' }]))
+  })
+
   it('Throws on ready if bee has incorrect encoding', async function () {
     const hyperInterface = await hyperInterfaceFactory()
     const bee = await hyperInterface.createBee('bee', { keyEncoding: 'utf-8' })
@@ -65,3 +76,11 @@ describe('Db-interface tests', function () {
     )
   })
 })
+
+async function consume (stream) {
+  const entries = []
+  for await (const entry of stream) {
+    entries.push(entry)
+  }
+  return entries
+}
