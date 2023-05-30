@@ -51,6 +51,12 @@ describe('Rehoster tests', function () {
     await testnet.destroy()
   })
 
+  it('sets the value of the root node', async function () {
+    expect(rehoster.rootNode.value.info).to.equal(
+      'The rehoster itself'
+    )
+  })
+
   it('Can add a core', async function () {
     await rehoster.add(core.key)
 
