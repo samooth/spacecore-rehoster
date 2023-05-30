@@ -66,6 +66,7 @@ class Rehoster extends ReadyResource {
   }
 
   async get (key) {
+    if (!this.opened) await this.ready()
     return await this.dbInterface.getKey(key)
   }
 
