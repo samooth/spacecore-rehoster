@@ -52,7 +52,7 @@ describe('Rehoster tests', function () {
   })
 
   it('sets the value of the root node', async function () {
-    expect(rehoster.rootNode.value.info).to.equal(
+    expect(rehoster.rootNode.info).to.equal(
       'The rehoster itself'
     )
   })
@@ -73,7 +73,11 @@ describe('Rehoster tests', function () {
   })
 
   it('Can add a core with a value', async function () {
-    await rehoster.add(core.key, { message: 'I am a core' }, { valueEncoding: 'json' })
+    await rehoster.add(
+      core.key,
+      { info: 'I am info', somethingElse: 'I am a core' },
+      { valueEncoding: 'json' }
+    )
 
     // Give time for async update to catch up
     await new Promise((resolve) => setTimeout(resolve, 10))
@@ -82,12 +86,11 @@ describe('Rehoster tests', function () {
       [discoveryKey(core.key), discoveryKey(rehoster.ownKey)]
     )
 
-    expect((await rehoster.get(core.key)).value).to.deep.equal(
-      { message: 'I am a core' }
-    )
-
     const node = rehoster.rootNode.children.get(asHex(core.key))
-    expect(node.value).to.deep.equal({ message: 'I am a core' })
+    expect(node.info).to.deep.equal('I am info')
+    expect((await rehoster.get(core.key)).value).to.deep.equal(
+      { info: 'I am info', somethingElse: 'I am a core' }
+    )
   })
 
   it('Does not error if adding a key a second time', async function () {

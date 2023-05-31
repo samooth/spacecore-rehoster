@@ -62,7 +62,7 @@ describe('Db-interface tests', function () {
     await dbInterface.addKey(key2)
     await dbInterface.addKey(key3, { info: 'my key3' })
 
-    const entries = await consume(dbInterface.getEntryStream())
+    const entries = await consume(dbInterface.getKeyInfoStream())
     expect(new Set(entries)).to.deep.equal(new Set([{ key }, { key: key2 }, { key: key3, info: 'my key3' }]))
   })
 

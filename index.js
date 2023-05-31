@@ -35,7 +35,7 @@ class Rehoster extends ReadyResource {
 
     this.rootNode = new RehosterNode({
       pubKey: this.ownKey,
-      value: { info: 'The rehoster itself' },
+      info: 'The rehoster itself',
       swarmManager: this.swarmManager,
       corestore: this.corestore,
       onInvalidKey: (args) => this.emit('invalidKey', args)
