@@ -146,8 +146,7 @@ describe('RehosterNode tests', function () {
     await node.ready()
 
     const blobsNode = node.children.get(asHex(drive.key)).secondaryCore
-    expect(blobsNode.value).to.deep.equal(
-      { info: `Secondary core of ${asHex(drive.key)}` })
+    expect(blobsNode.info).to.deep.equal(`Secondary core of ${asHex(drive.key)}`)
   })
 
   it('Also processes keys it cannot find, and connects to + downloads them when they come online', async function () {
