@@ -27,14 +27,13 @@
     "chai": "^4.3.6",
     "corestore": "^6.5.2",
     "graceful-goodbye": "^1.2.0",
-    "hyperdrive": "^11.0.0-alpha.10",
-    "hyperpubee-hyper-interface": "~0.2.0",
+    "hyperdrive": "^11.1.3",
     "hyperswarm": "^4.3.6",
     "mocha": "^10.0.0",
     "random-access-memory": "^5.0.1",
     "sinon": "^15.0.3",
     "standard": "^17.0.0",
-    "swarm-manager": "0.0.1-alpha.2"
+    "swarm-manager": "^1.0.0"
   },
   "standard": {
     "globals": [
