@@ -27,6 +27,7 @@
     "chai": "^4.3.6",
     "corestore": "^6.5.2",
     "graceful-goodbye": "^1.2.0",
+    "hyperdht": "^6.6.2",
     "hyperdrive": "^11.1.3",
     "hyperswarm": "^4.3.6",
     "mocha": "^10.0.0",

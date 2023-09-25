@@ -1,4 +1,4 @@
-const createTestnet = require('@hyperswarm/testnet')
+const createTestnet = require('hyperdht/testnet')
 const SwarmManager = require('swarm-manager')
 const Hyperswarm = require('hyperswarm')
 const Corestore = require('corestore')
