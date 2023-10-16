@@ -2,8 +2,6 @@
 
 Help host the hypercores of your choice.
 
-Warning: still in alfa
-
 For a hypercore containing a hyperdrive, both underlying cores will be served.
 
 If you rehost another rehoster, you will rehost all its cores as well (recursively).
