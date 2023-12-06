@@ -56,7 +56,7 @@ class Rehoster extends ReadyResource {
     return this.dbInterface.bee.feed.key
   }
 
-  async add (key, value = undefined) {
+  async add (key, value = null) {
     if (!this.opened) await this.ready()
     await this.dbInterface.addKey(key, value)
   }

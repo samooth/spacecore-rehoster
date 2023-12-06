@@ -20,6 +20,22 @@ describe('Db-interface tests', function () {
     expect(hexKeys).to.deep.equal([key])
   })
 
+  it('Does not add the same key twice, except if different value', async function () {
+    await dbInterface.addKey(key)
+    const initLength = dbInterface.bee.version
+    await dbInterface.addKey(key)
+    expect(initLength).to.equal(dbInterface.bee.version)
+
+    await dbInterface.addKey(key, 'A value')
+    expect(initLength + 1).to.equal(dbInterface.bee.version)
+
+    await dbInterface.addKey(key, 'A value')
+    expect(initLength + 1).to.equal(dbInterface.bee.version)
+
+    await dbInterface.addKey(key, 'New value')
+    expect(initLength + 2).to.equal(dbInterface.bee.version)
+  })
+
   it('Can remove a key from the db', async function () {
     await dbInterface.addKey(key)
     expect(await dbInterface.getHexKeys()).to.deep.equal([key])
