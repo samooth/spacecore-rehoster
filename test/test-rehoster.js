@@ -383,13 +383,13 @@ describe('Rehoster tests', function () {
       // Mock the runWatcher method so it crashes on the next diff
       const stub = sinon.stub(recRehoster.rootNode.children.get(asHex(rehoster.ownKey)), '_consumeDiffStream')
       stub.throws(new Error('Unexpected error while consuming watcher'))
-      await rehoster.add(recCore.key)
+      await rehoster.add('a'.repeat(64))
 
       let error = null
       recRehoster.on('error', (err) => { error = err })
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      expect(error.message).to.equal('Unexpected error while consuming watcher')
+      expect(error?.message).to.equal('Unexpected error while consuming watcher')
     })
 
     it('Recursively removes cores', async function () {
