@@ -464,6 +464,25 @@ describe('Rehoster tests', function () {
   it('exports the rehoster sub name', function () {
     expect(Rehoster.SUB).to.equal('\x00\x00\x00rehoster_key')
   })
+
+  it('can sync against json data', async function () {
+    const core2 = corestore.get({ name: 'core2' })
+    await core2.ready()
+
+    await rehoster.sync({
+      [asHex(core.key)]: { info: 'I am info' },
+      [asHex(core2.key)]: { info: 'I am info' }
+    })
+
+    // Give time for async update to catch up
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(rehoster.servedKeys).to.deep.have.same.members([
+      discoveryKey(core.key),
+      discoveryKey(core2.key),
+      discoveryKey(rehoster.ownKey)
+    ])
+  })
 })
 
 async function wait (ms = 100) {

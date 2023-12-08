@@ -3,6 +3,7 @@ const { expect } = require('chai')
 
 const { dbInterfaceFactory, hyperInterfaceFactory } = require('./fixtures.js')
 const DbInterface = require('../lib/db-interface.js')
+const { asZBase32 } = require('hexkey-utils')
 
 describe('Db-interface tests', function () {
   let dbInterface
@@ -90,6 +91,85 @@ describe('Db-interface tests', function () {
       int.ready(),
       'DbInterface must have default (binary) keyEncoding'
     )
+  })
+
+  it('can sync against a JSON', async function () {
+    const key2 = 'b'.repeat(64)
+    const key3 = 'c'.repeat(64)
+
+    const initData = {
+      [key]: { info: 'key1 info' },
+      [key2]: { }
+    }
+
+    await dbInterface.sync(initData)
+    {
+      const entries = await consume(dbInterface.getKeyInfoStream())
+      const expected = new Set([{ key, info: 'key1 info' }, { key: key2 }])
+      expect(new Set(entries)).to.deep.equal(expected)
+      expect(dbInterface.bee.version).to.equal(3)
+    }
+
+    const addData = {
+      ...initData,
+      [key3]: {}
+    }
+    await dbInterface.sync(addData)
+    {
+      const entries = await consume(dbInterface.getKeyInfoStream())
+      const expected = new Set([
+        { key, info: 'key1 info' },
+        { key: key2 },
+        { key: key3 }
+      ])
+      expect(new Set(entries)).to.deep.equal(expected)
+      expect(dbInterface.bee.version).to.equal(4)
+    }
+
+    const delData = {
+      [key]: { info: 'key1 info' }
+    }
+    await dbInterface.sync(delData)
+    {
+      const entries = await consume(dbInterface.getKeyInfoStream())
+      const expected = new Set([
+        { key, info: 'key1 info' }
+      ])
+      expect(new Set(entries)).to.deep.equal(expected)
+      expect(dbInterface.bee.version).to.equal(6)
+    }
+
+    const updateData = {
+      [key]: { info: 'key1 new info' },
+      [key2]: {}
+
+    }
+    await dbInterface.sync(updateData)
+    {
+      const entries = await consume(dbInterface.getKeyInfoStream())
+      const expected = new Set([
+        { key, info: 'key1 new info' },
+        { key: key2 }
+      ])
+      expect(new Set(entries)).to.deep.equal(expected)
+      expect(dbInterface.bee.version).to.equal(8)
+    }
+
+    const z32Data = {
+      [asZBase32(key)]: { info: 'key1 final info' },
+      [asZBase32(key2)]: {}
+    }
+
+    await dbInterface.sync(z32Data)
+    {
+      const entries = await consume(dbInterface.getKeyInfoStream())
+      const expected = new Set([
+        { key, info: 'key1 final info' },
+        { key: key2 } // unchanged
+      ])
+      expect(new Set(entries)).to.deep.equal(expected)
+      expect(dbInterface.bee.version).to.equal(9)
+    }
   })
 })
 
