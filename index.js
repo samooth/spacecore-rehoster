@@ -71,6 +71,11 @@ class Rehoster extends ReadyResource {
     return await this.dbInterface.getKey(key)
   }
 
+  async sync (state) {
+    if (!this.opened) await this.ready()
+    return await this.dbInterface.sync(state)
+  }
+
   get servedKeys () {
     return this.swarmManager.servedKeys
   }
