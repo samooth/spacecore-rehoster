@@ -52,6 +52,7 @@
     "hexkey-utils": "^1.2.0",
     "hyperbee": "^2.11.1",
     "hypercore-detector": "^1.0.0",
+    "hypercore-id-encoding": "^1.3.0",
     "ready-resource": "^1.0.0",
     "safety-catch": "^1.0.2",
     "same-object": "^1.0.2",
