@@ -392,6 +392,55 @@ describe('Rehoster tests', function () {
       expect(error?.message).to.equal('Unexpected error while consuming watcher')
     })
 
+    it('Emits error if a child errors (emitted error)', async function () {
+      recRehoster.on('new-node', () => {
+        throw new Error('oops, I messed up my handler')
+      })
+
+      let error = null
+      recRehoster.on('error', (err) => { error = err })
+      await recRehoster.add(core.key)
+      await recRehoster.add(rehoster.ownKey)
+
+      await wait(100)
+
+      expect(error?.message).to.equal('oops, I messed up my handler')
+    })
+
+    it('Emits a new-node event', async function () {
+      let addedKey = null
+      let addedLength = null
+
+      recRehoster.on('new-node', ({ publicKey, length }) => {
+        addedKey = publicKey
+        addedLength = length
+      })
+
+      await recRehoster.add(core.key)
+
+      await wait(100)
+
+      expect(addedKey).to.deep.equal(core.key)
+      expect(addedLength).to.equal(0)
+    })
+
+    it('Emits a node-update event', async function () {
+      let addedKey = null
+      let newLength = null
+
+      recRehoster.on('node-update', ({ publicKey, length }) => {
+        addedKey = publicKey
+        newLength = length
+      })
+
+      await recRehoster.add(core.key)
+
+      await wait(100)
+
+      expect(addedKey).to.deep.equal(recRehoster.ownKey)
+      expect(newLength).to.equal(2) // init block and the added key
+    })
+
     it('Recursively removes cores', async function () {
       await recRehoster.add(core.key)
       await recRehoster.add(rehoster.ownKey)

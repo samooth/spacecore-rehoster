@@ -38,8 +38,24 @@ class Rehoster extends ReadyResource {
       info: 'The rehoster itself',
       swarmManager: this.swarmManager,
       corestore: this.corestore,
-      onInvalidKey: (args) => this.emit('invalidKey', args)
+      onInvalidKey: (args) => {
+        this.emit('invalidKey', args) // Deprecated TODO: remove on next major
+        this.emit('invalid-key', args)
+      },
+      onNewNode: (rehosterNode) => {
+        this.emit('new-node', {
+          publicKey: rehosterNode.pubKey,
+          length: rehosterNode.core?.length
+        })
+      },
+      onNodeUpdate: (rehosterNode) => {
+        this.emit('node-update', {
+          publicKey: rehosterNode.pubKey,
+          length: rehosterNode.core?.length
+        })
+      }
     })
+
     await this.rootNode.ready()
     this.rootNode.on('error', (err) => this.emit('error', err))
   }
