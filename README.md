@@ -60,6 +60,18 @@ Note that propagating the delete to recursively hosted cores happens in the back
 ### `await rehoster.close()`
 Close the rehoster, and clean up.
 
+### `rehoster.on('new-node', { publicKey, length })`
+
+Emitted when a new node was added to the rehoster.
+
+### `rehoster.on('node-update', { publicKey, length })`
+
+Emitted every time a node's underlying core gets a new length.
+
+### `rehoster.on('node-fully-downloaded', { publicKey, length })`
+
+Emitted every time a node's underlying core has been fully downloaded.
+
 ## Usage
 
 See [example.js](example.js) for the basic usage.
