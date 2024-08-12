@@ -45,13 +45,19 @@ class Rehoster extends ReadyResource {
       onNewNode: (rehosterNode) => {
         this.emit('new-node', {
           publicKey: rehosterNode.pubKey,
-          length: rehosterNode.core?.length
+          length: rehosterNode.core.length
         })
       },
       onNodeUpdate: (rehosterNode) => {
         this.emit('node-update', {
           publicKey: rehosterNode.pubKey,
-          length: rehosterNode.core?.length
+          length: rehosterNode.core.length
+        })
+      },
+      onFullyDownloaded: (rehosterNode) => {
+        this.emit('node-fully-downloaded', {
+          publicKey: rehosterNode.pubKey,
+          length: rehosterNode.core.length
         })
       }
     })
