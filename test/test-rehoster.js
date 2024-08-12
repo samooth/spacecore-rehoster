@@ -194,6 +194,9 @@ describe('Rehoster tests', function () {
   })
 
   it('works across different swarms', async function () {
+    let eventPublicKey = null
+    let eventLength = null
+
     const recCore = await corestore.get({ name: 'rec core' })
     const recCore2 = await corestore.get({ name: 'rec core2' })
     await recCore.ready()
@@ -210,11 +213,16 @@ describe('Rehoster tests', function () {
     await superBee.ready()
 
     const recRehoster = new Rehoster(corestore2, swarmManager2)
+    recRehoster.on('node-fully-downloaded', ({ publicKey, length }) => {
+      eventPublicKey = publicKey
+      eventLength = length
+    })
 
     await recRehoster.add(core.key)
     await recRehoster.add(rehoster.ownKey)
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // TODO: cleanly (timing dependent atm)
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     expect(recRehoster.servedKeys).to.deep.have.same.members([
       discoveryKey(recCore.key),
@@ -223,6 +231,9 @@ describe('Rehoster tests', function () {
       discoveryKey(core.key),
       discoveryKey(recRehoster.ownKey)
     ])
+
+    expect(eventPublicKey).to.not.equal(null)
+    expect(eventLength).to.not.equal(null)
 
     await recRehoster.close()
   })
