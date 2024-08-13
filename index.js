@@ -94,8 +94,19 @@ class Rehoster extends ReadyResource {
   }
 
   async sync (state) {
+    // TODO: move to only accepting Map on next major
+    let asObj = null
+    if (state instanceof Map) {
+      asObj = {}
+      for (const [key, value] of state) {
+        asObj[key] = value
+      }
+    } else {
+      asObj = state
+    }
+
     if (!this.opened) await this.ready()
-    return await this.dbInterface.sync(state)
+    return await this.dbInterface.sync(asObj)
   }
 
   get servedKeys () {
