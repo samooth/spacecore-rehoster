@@ -1,76 +1,57 @@
-const Hyperbee = require('hyperbee')
 const ReadyResource = require('ready-resource')
-
-const RehosterNode = require('./lib/rehoster-node.js')
-const DbInterface = require('./lib/db-interface.js')
-const { METADATA_SUB, ENCODINGS } = require('./lib/constants.js')
-
-const DEFAULT_BEE_NAME = 'rehoster-bee'
+const RehosterDb = require('./db')
+const NodeManager = require('./lib/node-manager')
 
 class Rehoster extends ReadyResource {
-  constructor (corestore, swarmManager, {
-    bee = undefined,
-    beeName = DEFAULT_BEE_NAME
-  } = {}) {
+  constructor (corestore, swarmManager, bee) {
     super()
 
     this.swarmManager = swarmManager
     this.corestore = corestore
 
-    bee ??= new Hyperbee(
-      corestore.get({ name: beeName }),
-      ENCODINGS
-    )
-    this.dbInterface = new DbInterface(bee)
-
+    this.db = new RehosterDb(bee)
     this.rootNode = null
-  }
-
-  static get SUB () {
-    return METADATA_SUB
-  }
-
-  async _open () {
-    await this.dbInterface.ready()
-
-    this.rootNode = new RehosterNode({
-      pubKey: this.ownKey,
-      info: 'The rehoster itself',
-      swarmManager: this.swarmManager,
-      corestore: this.corestore,
-      onInvalidKey: (args) => {
-        this.emit('invalidKey', args) // Deprecated TODO: remove on next major
-        this.emit('invalid-key', args)
-      },
-      onNewNode: (rehosterNode) => {
-        this.emit('new-node', {
-          publicKey: rehosterNode.pubKey,
-          length: rehosterNode.core.length,
-          name: rehosterNode.info
-        })
-      },
-      onNodeUpdate: (rehosterNode) => {
-        this.emit('node-update', {
-          publicKey: rehosterNode.pubKey,
-          length: rehosterNode.core.length,
-          name: rehosterNode.info
-        })
-      },
-      onFullyDownloaded: (rehosterNode) => {
-        this.emit('node-fully-downloaded', {
-          publicKey: rehosterNode.pubKey,
-          length: rehosterNode.core.length,
-          name: rehosterNode.info
-        })
+    this.nodeManager = new NodeManager(
+      this.swarmManager,
+      this.corestore, {
+        onInvalidKey: ({ invalidKey }) => {
+          this.emit('invalid-key', { invalidKey })
+        },
+        onInvalidValue: ({ rawEntry, error }) => {
+          this.emit('invalid-value', { rawEntry, error })
+        },
+        onNewNode: (rehosterNodeRef, nrRefs) => {
+          this.emit(
+            'new-node',
+            new RehosterNodeRefInfo(rehosterNodeRef, nrRefs)
+          )
+        },
+        onNodeDeleted: (rehosterNodeRef, nrRefs) => {
+          this.emit(
+            'deleted-node',
+            new RehosterNodeRefInfo(rehosterNodeRef, nrRefs)
+          )
+        },
+        // Only these 2 are emitted by the nodes themselves
+        onNodeUpdate: (rehosterNode) => {
+          this.emit(
+            'node-update',
+            new RehosterNodeInfo(rehosterNode)
+          )
+        },
+        onFullyDownloaded: (rehosterNode) => {
+          this.emit(
+            'node-fully-downloaded',
+            new RehosterNodeInfo(rehosterNode)
+          )
+        }
       }
-    })
-
-    await this.rootNode.ready()
-    this.rootNode.on('error', (err) => this.emit('error', err))
+    )
+    this.nodeManager.on('error', (err) => this.emit('error', err))
   }
 
   get bee () {
-    return this.dbInterface.bee
+    return this.db.bee
   }
 
   get swarm () {
@@ -78,56 +59,92 @@ class Rehoster extends ReadyResource {
   }
 
   get ownKey () {
-    return this.dbInterface.bee.feed.key
+    return this.bee.core.key
   }
 
-  async add (key, value = null) {
-    if (!this.opened) await this.ready()
-    await this.dbInterface.addKey(key, value)
+  get ownDiscoveryKey () {
+    return this.bee.core.discoveryKey
   }
 
-  async delete (key) {
-    if (!this.opened) await this.ready()
-    await this.dbInterface.removeKey(key)
-  }
+  async _open () {
+    await this.bee.ready()
+    await this.nodeManager.ready()
 
-  async get (key) {
-    if (!this.opened) await this.ready()
-    return await this.dbInterface.getKey(key)
-  }
+    this.rootNode = this.nodeManager.addNode(this.ownKey, {
+      description: 'Rehoster root node'
+    })
 
-  async sync (state) {
-    // TODO: move to only accepting Map on next major
-    let asObj = null
-    if (state instanceof Map) {
-      asObj = {}
-      for (const [key, value] of state) {
-        asObj[key] = value
-      }
-    } else {
-      asObj = state
-    }
-
-    if (!this.opened) await this.ready()
-    return await this.dbInterface.sync(asObj)
-  }
-
-  get servedKeys () {
-    return this.swarmManager.servedKeys
-  }
-
-  get requestedKeys () {
-    return this.swarmManager.requestedKeys
-  }
-
-  get keys () {
-    return this.swarmManager.keys
+    await this.rootNode.ready()
   }
 
   async _close () {
-    await this.rootNode.close()
-    await this.dbInterface.close()
+    await this.nodeManager.close()
     await this.corestore.close()
+  }
+
+  async add (key, { description, ...opts } = {}) {
+    await this.ready()
+    return await this.db.add(key, { description, ...opts })
+  }
+
+  async get (key) {
+    await this.ready()
+    return await this.db.get(key)
+  }
+
+  async has (key) {
+    await this.ready()
+    return await this.db.has(key)
+  }
+
+  async delete (key) {
+    await this.ready()
+    return await this.db.delete(key)
+  }
+
+  // WARNING: The sync method should NOT be used in combination
+  // with the add and del methods: no care is taken to avoid
+  // race conditions against add and delete operations while
+  // a sync is running (only against other syncs)
+  async sync (desiredState) {
+    await this.ready()
+    const syncedIt = await this.db.sync(desiredState)
+    if (syncedIt) this.emit('synced', desiredState)
+  }
+
+  createReadStream () {
+    return this.db.createReadStream()
+  }
+
+  async getExplicitEntries () {
+    const versionInfo = false
+
+    const res = []
+    for await (const { key, value } of this.createReadStream()) {
+      if (!versionInfo) {
+        delete value.major
+        delete value.minor
+      }
+      res.push([key, value])
+    }
+
+    return res
+  }
+}
+
+class RehosterNodeRefInfo {
+  constructor (rehosterNodeRef, nrRefs) {
+    this.nrRefs = nrRefs
+    this.publicKey = rehosterNodeRef.pubKey
+    this.coreLength = rehosterNodeRef.core.length
+    this.description = rehosterNodeRef.description
+  }
+}
+
+class RehosterNodeInfo {
+  constructor (rehosterNode) {
+    this.publicKey = rehosterNode.pubKey
+    this.coreLength = rehosterNode.core.length
   }
 }
 

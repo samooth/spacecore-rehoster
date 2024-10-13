@@ -1,28 +1,35 @@
 const Corestore = require('corestore')
-const Rehoster = require('./index.js')
 const ram = require('random-access-memory')
 const { asHex } = require('hexkey-utils')
 const SwarmManager = require('swarm-manager')
 const Hyperswarm = require('hyperswarm')
+const createTestnet = require('hyperdht/testnet')
+const Hyperbee = require('hyperbee')
+
+const Rehoster = require('./index.js')
 
 const corestoreLoc = ram // './my-store' for persistence on the specified file
 
 async function main () {
+  const testnet = await createTestnet()
+  const bootstrap = testnet.bootstrap
+
   const corestore = new Corestore(corestoreLoc)
-  const rehoster = getRehoster(corestore, new Hyperswarm())
+  const rehoster = getRehoster(corestore, new Hyperswarm({ bootstrap }))
+  await rehoster.ready()
 
   const someCore = corestore.get({ name: 'mycore' })
   await someCore.ready()
   await rehoster.add(someCore.key)
 
   console.log('rehoster served discovery keys:')
-  console.log(rehoster.servedKeys.map(k => asHex(k)))
+  console.log(rehoster.swarmManager.servedKeys.map(k => asHex(k)))
   // Note: a rehoster always serves itself, so will log 2 keys
 
-  console.log('\nIf you add the key of another rehoster, then it will recursively serve all its works')
+  console.log('\nIf you add the key of another rehoster, then it will recursively serve all it rehosts too')
 
   const corestore2 = new Corestore(ram)
-  const rerehoster = getRehoster(corestore2, new Hyperswarm())
+  const rerehoster = getRehoster(corestore2, new Hyperswarm({ bootstrap }))
 
   // This ensures the other rehoster already flushed its topics to the swarm
   // In practice you don't need to worry about this, it just helps solve a race condition
@@ -37,7 +44,7 @@ async function main () {
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
   console.log('rerehoster served discovery keys:')
-  console.log(rerehoster.servedKeys.map(k => asHex(k))) // 3 keys: its own, the rehoster's and what that one hosts
+  console.log(rerehoster.swarmManager.servedKeys.map(k => asHex(k))) // 3 keys: its own, the rehoster's and what that one hosts
 
   console.log('\nThe rehoster downloads any new blocks added to the hypercore')
   someCore.on('append', () => console.log('Appended to local core--new length:', someCore.length))
@@ -55,11 +62,15 @@ async function main () {
     await rehoster.delete(someCore.key)
 
     await new Promise((resolve) => setTimeout(resolve, 3000)) // Give some time to update
-    console.log('rehoster:', rehoster.servedKeys.map(k => asHex(k))) // Should only be 1
-    console.log('rerehoster:', rerehoster.servedKeys.map(k => asHex(k))) // Should only be 2
+    console.log('rehoster:', rehoster.swarmManager.servedKeys.map(k => asHex(k))) // Should only be 1
+    console.log('rerehoster:', rerehoster.swarmManager.servedKeys.map(k => asHex(k))) // Should only be 2
 
-    await Promise.all([rehoster.close(), rerehoster.close()])
-    await Promise.all([rehoster.swarmManager.close(), rerehoster.swarmManager.close()])
+    await rehoster.swarmManager.close()
+    await rerehoster.swarmManager.close()
+    await rehoster.close()
+    await rerehoster.close()
+
+    await testnet.destroy()
   }
 }
 
@@ -70,9 +81,11 @@ function getRehoster (store, swarm) {
   })
 
   const swarmManager = new SwarmManager(swarm)
+  const namespace = store.namespace('rehoster')
   return new Rehoster(
-    store.namespace('rehoster'),
-    swarmManager
+    namespace,
+    swarmManager,
+    new Hyperbee(namespace.get({ name: 'bee' }))
   )
 }
 

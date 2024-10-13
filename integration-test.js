@@ -35,13 +35,41 @@ let bootstrap
 function getSwarm (store) {
   const swarm = new Hyperswarm({ bootstrap })
   if (store) {
-    swarm.on('connection', (socket) => {
-      store.replicate(socket)
-      socket.on('error', safetyCatch)
+    swarm.on('connection', (conn) => {
+      conn.on('end', () => { conn.end() })
+      store.replicate(conn)
+      // Note the absence of an error handler.
+      // There should be no errors since we control both sides,
+      // so if one does occur, we want it to crash
     })
   }
 
   return swarm
+}
+
+async function cleanlyCloseRehoster (rehoster) {
+  const swarmManager = rehoster.swarmManager
+  const swarm = swarmManager.swarm
+
+  const proms = []
+  for (const conn of swarm.connections) {
+    conn.end()
+    if (conn.destroyed) continue
+    proms.push(once(conn, 'close'))
+  }
+  await Promise.all(proms)
+
+  await swarm.destroy()
+  await swarmManager.close()
+  await rehoster.close()
+}
+
+function getRehoster (store) {
+  return new Rehoster(
+    store,
+    new SwarmManager(getSwarm(store)),
+    new Hyperbee(store.get({ name: 'bee' }))
+  )
 }
 
 async function runIntegrationTest (testnet) {
@@ -69,11 +97,11 @@ async function runIntegrationTest (testnet) {
   await peer1.swarm.flush()
 
   const storeReh1 = new Corestore(REH1_LOC)
-  const reh1 = new Rehoster(storeReh1, new SwarmManager(getSwarm(storeReh1)))
+  const reh1 = getRehoster(storeReh1)
   // reh1.swarm.on('connection', (conn, info) => console.debug('Rehoster1 connected with', info.publicKey.toString('hex')))
 
-  await reh1.add(driveP1.key)
-  await reh1.add(driveP2.key)
+  await reh1.add(driveP1.key, { description: 'driveP1 in reh1' })
+  await reh1.add(driveP2.key, { description: 'DriveP2 in reh1' })
 
   const readCore = reh1.corestore.get(driveP1.key)
   await once(readCore, 'append') // Connected
@@ -95,16 +123,17 @@ async function runIntegrationTest (testnet) {
   // 3) ********************************************************************
   console.log('3) Rehoster1 and 2 both online, then rehoster1 disappears')
   const reh2Store = new Corestore(REH2_LOC)
-  const reh2 = new Rehoster(reh2Store, new SwarmManager(getSwarm(reh2Store)))
+  const reh2 = getRehoster(reh2Store)
   const connected = once(reh2.swarm, 'connection')
-  await reh2.add(reh1.ownKey)
-  await reh2.add(driveP2.key)
-  await reh2.add(beeP2.feed.key)
+  await reh2.add(reh1.ownKey, { description: 'reh1 in reh2' })
+  await reh2.add(driveP2.key, { description: 'DriveP2 in reh2' })
+  await reh2.add(beeP2.feed.key, { description: 'DriveP2 feed in reh2' })
   await connected
 
   await wait(MS_WAIT_DOWNLOAD)
 
-  await reh1.close()
+  await cleanlyCloseRehoster(reh1)
+
   if (await canDownloadCore(driveP1.key)) {
     console.log('3) Finished\n')
   } else {
@@ -115,24 +144,24 @@ async function runIntegrationTest (testnet) {
   console.log('4) Rehosters 2-4 online, then only rehoster 4 remains')
 
   const reh3Store = new Corestore(REH3_LOC)
-  const reh3 = new Rehoster(reh3Store, new SwarmManager(getSwarm(reh3Store)))
+  const reh3 = getRehoster(reh3Store)
   const reh4Store = new Corestore(REH4_LOC)
-  const reh4 = new Rehoster(reh4Store, new SwarmManager(getSwarm(reh4Store)))
+  const reh4 = getRehoster(reh4Store)
 
   const connecteds = [once(reh3.swarm, 'connection'), once(reh4.swarm, 'connection')]
-  await reh3.add(reh2.ownKey)
+  await reh3.add(reh2.ownKey, { description: 'reh2 in reh3' })
 
   await reh4.ready()
-  await reh3.add(reh4.ownKey)
+  await reh3.add(reh4.ownKey, { description: 'reh4 in reh3' })
 
   await reh3.swarm.flush()
-  await reh4.add(reh3.ownKey)
+  await reh4.add(reh3.ownKey, { description: 'reh3 in reh4' })
   await Promise.all(connecteds)
 
   await wait(MS_WAIT_DOWNLOAD)
 
-  await reh2.close()
-  await reh3.close()
+  await cleanlyCloseRehoster(reh2)
+  await cleanlyCloseRehoster(reh3)
 
   if (await canDownloadCore(driveP1.key)) {
     console.log('4) Finished\n')
@@ -183,22 +212,23 @@ async function runIntegrationTest (testnet) {
   // 6) ********************************************************************
   console.log('6) Passing the updated info back to rehoster2')
   const reh3ReStore = new Corestore(REH3_LOC)
-  const reReh3 = new Rehoster(reh3ReStore, new SwarmManager(getSwarm(reh3ReStore)))
+  const reReh3 = getRehoster(reh3ReStore)
+
   const reReh3Connected = once(reReh3.swarm, 'connection')
   await reReh3.ready()
   await reReh3Connected
 
   await wait(MS_WAIT_DOWNLOAD)
-  await reh4.close()
+  await cleanlyCloseRehoster(reh4)
 
   const reh2ReStore = new Corestore(REH2_LOC)
-  const reReh2 = new Rehoster(reh2ReStore, new SwarmManager(getSwarm(reh2ReStore)))
+  const reReh2 = getRehoster(reh2ReStore)
   const reReh2Connected = once(reReh2.swarm, 'connection')
   await reReh2.ready()
   await reReh2Connected
 
   await wait(MS_WAIT_DOWNLOAD)
-  await reReh3.close()
+  await cleanlyCloseRehoster(reReh3)
 
   if (await canDownloadCore(beeP2.feed.key)) {
     console.log('6) Finished\n')
@@ -211,7 +241,7 @@ async function runIntegrationTest (testnet) {
   await reReh2.swarm.flush()
 
   const reh1ReStore = new Corestore(REH1_LOC)
-  const reReh1 = new Rehoster(reh1ReStore, new SwarmManager(getSwarm(reh1ReStore)))
+  const reReh1 = getRehoster(reh1ReStore)
   const reReh1Connected = once(reReh2.swarm, 'connection')
   await reReh1.ready()
   await reReh1Connected
@@ -246,9 +276,12 @@ async function runIntegrationTest (testnet) {
 
   // Shutting down
   console.log('Shutting down')
-  await Promise.all(
-    [peer2, peer1, reh1, reh2, reh3, reh4, renewedPeer1, reReh3, reReh2, reReh1].map(x => x.close())
-  )
+  await peer2.close()
+  await peer1.close()
+  await renewedPeer1.close()
+  for (const reh of [reh1, reh2, reh3, reh4, reReh3, reReh2, reReh1]) {
+    await cleanlyCloseRehoster(reh)
+  }
 }
 
 async function main () {
