@@ -29,7 +29,7 @@ Initialises a rehoster.
 The `corestore` is managed by the rehoster (closes when the rehoster closes), so consider passing in a corestore session.
 The `swarmManager` and `bee` are not managed by the rehoster.
 
-Note when passing a bee: to be able to add/delete cores, the corestore should have write rights on the bee (it should have been created with that corestore).
+Note: to be able to add/delete cores, the corestore should have write rights on the passed-in bee (it should have been created with that corestore).
 
 ### `rehoster.ownKey`
 
