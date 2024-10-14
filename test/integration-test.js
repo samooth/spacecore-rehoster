@@ -9,7 +9,7 @@ const safetyCatch = require('safety-catch')
 const { once } = require('events')
 const goodbye = require('graceful-goodbye')
 
-const Rehoster = require('.')
+const Rehoster = require('..')
 const SwarmManager = require('swarm-manager')
 
 const DIR = 'test-stores/'
