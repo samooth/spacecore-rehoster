@@ -1,6 +1,6 @@
 {
   "name": "hypercore-rehoster",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Help keep the hypercores of your choice available",
   "main": "index.js",
   "scripts": {
