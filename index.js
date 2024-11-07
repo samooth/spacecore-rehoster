@@ -17,8 +17,8 @@ class Rehoster extends ReadyResource {
         onInvalidKey: ({ invalidKey }) => {
           this.emit('invalid-key', { invalidKey })
         },
-        onInvalidValue: ({ rawEntry, error }) => {
-          this.emit('invalid-value', { rawEntry, error })
+        onInvalidValue: ({ publicKey, rawEntry, error }) => {
+          this.emit('invalid-value', { publicKey, rawEntry, error })
         },
         onNewNode: (rehosterNodeRef, nrRefs) => {
           this.emit(

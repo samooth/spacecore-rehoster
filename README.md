@@ -161,15 +161,15 @@ Emitted whenever the rehoster encounters an invalid key (that cannot refer to a 
 
 Invalid keys are skipped.
 
-#### `rehoster.on('invalid-value', { rawEntry, error })`
+#### `rehoster.on('invalid-value', { publicKey, rawEntry, error })`
 
-Emitted whenever the rehoster encounters an invalid entry, for example if the entry was created by an incompatible Rehoster version, or if it cannot be decoded.
+Emitted whenever the rehoster encounters an invalid entry. For example if the entry was created by an incompatible Rehoster version, or if it cannot be decoded.
 
 Entries with invalid values are skipped.
 
-`error` is the error object thrown when trying to decode the value.
-
-`rawEntry` is the raw hyperbee entry (without decoding it).
+- `publicKey` is the public key of the Hyperbee containing the invalid value.
+- `error` is the error object thrown when trying to decode the value.
+- `rawEntry` is the raw hyperbee entry (without decoding it).
 
 ## Usage
 

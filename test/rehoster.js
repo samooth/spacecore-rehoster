@@ -11,7 +11,7 @@ const { discoveryKey } = require('hypercore-crypto')
 const idEnc = require('hypercore-id-encoding')
 const b4a = require('b4a')
 const Rehoster = require('../index')
-const { REHOSTER_SUB, CURRENT_VERSION } = require('../lib/encodings')
+const { REHOSTER_SUB, CURRENT_VERSION, REHOSTER_ENCODINGS } = require('../lib/encodings')
 const Hyperdrive = require('hyperdrive')
 const Hyperbee = require('hyperbee')
 
@@ -403,6 +403,33 @@ test('does not process invalid key and emits event', async function (t) {
   await rehoster.bee.put(notAKey, null, {
     keyEncoding: REHOSTER_SUB
   })
+
+  // just in case: give some time then verify it wasn't added
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  t.alike(
+    new Set(swarmManager.servedKeys),
+    new Set([discoveryKey(rehoster.ownKey)])
+  )
+})
+
+test('does not process invalid value and emits event', async function (t) {
+  t.plan(4)
+  const { rehoster, swarmManager } = await setup(t)
+  await rehoster.ready()
+
+  const key = b4a.from('a'.repeat(64), 'hex')
+  rehoster.on('invalid-value', ({ publicKey, rawEntry, error }) => {
+    t.ok(error.message.includes('Cannot decode Rehoster entry'), 'sanity check on err message')
+    t.alike(publicKey, rehoster.ownKey, 'event includes the key of the node')
+    t.alike(rawEntry.key, key, 'reports invalid-value event')
+  })
+  rehoster.on('new-node', (info) => {
+    console.error(info)
+    t.fail('added the invalid node')
+  })
+
+  await rehoster.bee.put(key, { version: { major: 9999999 } }, REHOSTER_ENCODINGS)
 
   // just in case: give some time then verify it wasn't added
   await new Promise(resolve => setTimeout(resolve, 100))
