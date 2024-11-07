@@ -96,38 +96,36 @@ Close the rehoster, and clean up.
 
 ### Events
 
-#### `rehoster.on('new-node', rehosterNodeRef, nrRefs)`
+#### `rehoster.on('new-node', rehosterNodeRef)`
 
 Emitted when a new node was added to the rehoster.
 
-`nrRefs` is the amount of times this node is referenced.
-
-`RehosterNodeRef` is an object:
+`rehosterNodeRef` is an object:
 
 ```
 {
-  nrRefs,
+  nrRefs, // the amount of times this node is referenced
   publicKey,
   coreLength,
-  description
+  description // the description of the new reference
 }
 ```
 
 
-#### `rehoster.on('deleted-node', rehosterNodeRef, nrRefs)`
+#### `rehoster.on('deleted-node', rehosterNodeRef)`
 
 Emitted when a node was deleted from the rehoster.
 
 `nrRefs` is the amount of times this node is referenced.
 
-`RehosterNodeRef` is an object:
+`rehosterNodeRef` is an object:
 
 ```
 {
-  nrRefs,
+  nrRefs, // the amount of times the node is still referenced now
   publicKey,
   coreLength,
-  description
+  description // the description of the deleted reference
 }
 ```
 
@@ -135,7 +133,7 @@ Emitted when a node was deleted from the rehoster.
 
 Emitted every time a node's underlying core gets a new length.
 
-`RehosterNodeInfo` is an object:
+`rehosterNodeInfo` is an object:
 
 ```
 {
@@ -148,7 +146,7 @@ Emitted every time a node's underlying core gets a new length.
 
 Emitted every time a node's underlying core has been fully downloaded.
 
-`RehosterNodeInfo` is an object:
+`rehosterNodeInfo` is an object:
 
 ```
 {
