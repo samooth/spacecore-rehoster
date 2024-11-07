@@ -155,11 +155,14 @@ Emitted every time a node's underlying core has been fully downloaded.
 }
 ```
 
-#### `rehoster.on('invalid-key', { invalidKey })`
+#### `rehoster.on('invalid-key', { publicKey, invalidKey })`
 
 Emitted whenever the rehoster encounters an invalid key (that cannot refer to a Hypercore).
 
 Invalid keys are skipped.
+
+- `publicKey` the public key of the hyperbee containing the entry
+- `invalidKey` the key of the hyperbee entry that is invalid
 
 #### `rehoster.on('invalid-value', { publicKey, rawEntry, error })`
 

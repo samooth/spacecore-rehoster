@@ -14,8 +14,8 @@ class Rehoster extends ReadyResource {
     this.nodeManager = new NodeManager(
       this.swarmManager,
       this.corestore, {
-        onInvalidKey: ({ invalidKey }) => {
-          this.emit('invalid-key', { invalidKey })
+        onInvalidKey: ({ publicKey, invalidKey }) => {
+          this.emit('invalid-key', { publicKey, invalidKey })
         },
         onInvalidValue: ({ publicKey, rawEntry, error }) => {
           this.emit('invalid-value', { publicKey, rawEntry, error })
