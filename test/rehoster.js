@@ -387,13 +387,14 @@ test('Can add multiple cores', async function (t) {
 })
 
 test('does not process invalid key and emits event', async function (t) {
-  t.plan(2)
+  t.plan(3)
   const { rehoster, swarmManager } = await setup(t)
   await rehoster.ready()
 
   const notAKey = b4a.from('not a key')
-  rehoster.on('invalid-key', ({ invalidKey, rehosterKey }) => {
+  rehoster.on('invalid-key', ({ publicKey, invalidKey }) => {
     t.alike(invalidKey, notAKey, 'reports invalid-key event')
+    t.alike(publicKey, rehoster.ownKey, 'includes public key of bee where it happens')
   })
   rehoster.on('new-node', (info) => {
     console.error(info)
