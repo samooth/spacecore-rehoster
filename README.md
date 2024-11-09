@@ -183,7 +183,7 @@ To make an existing Hyperbee behave as a rehoster, you should use the RehosterDb
 Do note that this approach works best if you are using a [sub-encoder](https://github.com/holepunchto/sub-encoder/) pattern for the Hyperbee.
 
 ```
-const RehosterDb = require('./db')
+const RehosterDb = require('hypercore-rehoster/db')
 const Corestore = require('corestore')
 const Hyperbee = require('hyperbee')
 
