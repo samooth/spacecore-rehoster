@@ -89,10 +89,14 @@ Return true if the rehoster has an entry with the given key, false othersiwe.
 
 Note: entries which are present recursively (because they are present in a rehoster which was added) are not considered.
 
-
-
 ### `await rehoster.close()`
 Close the rehoster, and clean up.
+
+### `rehoster.registerLogger(logger)`
+
+Add default logging for the rehoster's events (for example when a new node is added).
+
+`logger` can be a pino instance, or simple `console`.
 
 ### Events
 

@@ -1,4 +1,5 @@
 const ReadyResource = require('ready-resource')
+const idEnc = require('hypercore-id-encoding')
 const RehosterDb = require('./db')
 const NodeManager = require('./lib/node-manager')
 
@@ -129,6 +130,31 @@ class Rehoster extends ReadyResource {
     }
 
     return res
+  }
+
+  registerLogger (logger) {
+    this.on('new-node', ({ description, nrRefs, coreLength, publicKey }) => {
+      logger.info(`New node added: '${description}' (ref ${nrRefs} for ${idEnc.normalize(publicKey)} with current length: ${coreLength})`)
+    })
+    this.on('deleted-node', ({ description, nrRefs, publicKey }) => {
+      logger.info(`Node deleted: '${description}' (${idEnc.normalize(publicKey)} has ${nrRefs} refs remaining)`)
+    })
+
+    this.on('node-update', ({ publicKey, coreLength }) => {
+      logger.info(`Length updated to ${coreLength} for ${idEnc.normalize(publicKey)}`)
+    })
+    this.on('node-fully-downloaded', ({ publicKey, coreLength }) => {
+      logger.info(`Node ${idEnc.normalize(publicKey)} is fully downloaded (total length: ${coreLength})`)
+    })
+
+    this.on('invalid-key', ({ publicKey, invalidKey }) => {
+      logger.info(`Ignored invalid key for rehoster ${idEnc.normalize(publicKey)} (key ${invalidKey})`)
+    })
+    this.on('invalid-value', ({ publicKey, rawEntry, error }) => {
+      const key = rawEntry.key
+      logger.info(`Invalid entry for rehoster ${idEnc.normalize(publicKey)} at key ${key}`)
+      if (logger?.level === 'debug') logger.debug(error.stack)
+    })
   }
 }
 
