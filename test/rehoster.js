@@ -711,6 +711,29 @@ test('example does not error', async t => {
   process.removeListener('exit', onUnexpectedProcessExit)
 })
 
+test('respects custom shouldRehost', async (t) => {
+  t.plan(1)
+
+  const bootstrap = await setupTestnet(t)
+  const core = await setupCore(t, bootstrap)
+  const core2 = await setupCore(t, bootstrap)
+
+  const shouldRehost = (node) => {
+    if (b4a.equals(node.key, core.key)) return false
+    return true
+  }
+  const rehoster = await setupRehoster(t, bootstrap, { shouldRehost })
+
+  rehoster.on('new-node', ({ publicKey }) => {
+    if (b4a.equals(publicKey, core.key)) t.fail('did not filter out the key')
+    if (!b4a.equals(publicKey, core2.key)) return
+    t.pass('does rehost other key')
+  })
+
+  await rehoster.add(core.key)
+  await rehoster.add(core2.key)
+})
+
 async function setupPeer (t, bootstrap) {
   const corestore = new Corestore(RAM)
 
@@ -757,13 +780,13 @@ async function setupDrive (t, bootstrap) {
   return drive
 }
 
-async function setupRehoster (t, bootstrap) {
+async function setupRehoster (t, bootstrap, opts = {}) {
   const { corestore, swarm } = await setupPeer(t, bootstrap)
 
   const swarmManager = new SwarmManager(swarm, corestore)
   const bee = new Hyperbee(corestore.get({ name: 'bee' }))
 
-  const rehoster = new Rehoster(corestore, swarmManager, bee)
+  const rehoster = new Rehoster(corestore, swarmManager, bee, opts)
 
   t.teardown(async () => {
     await swarmManager.close()
@@ -773,15 +796,22 @@ async function setupRehoster (t, bootstrap) {
   return rehoster
 }
 
-async function setup (t) {
+async function setupTestnet (t) {
   const testnet = await createTestnet(3)
   const bootstrap = testnet.bootstrap
+  t.teardown(async () => {
+    await testnet.destroy()
+  }, { order: 10000 })
 
+  return bootstrap
+}
+
+async function setup (t) {
+  const bootstrap = await setupTestnet(t)
   const rehoster = await setupRehoster(t, bootstrap)
 
   t.teardown(async () => {
     await rehoster.close()
-    await testnet.destroy()
   }, { order: 1000 })
 
   return { rehoster, bootstrap, swarmManager: rehoster.swarmManager }

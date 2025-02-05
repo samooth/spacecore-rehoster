@@ -4,7 +4,7 @@ const RehosterDb = require('./db')
 const NodeManager = require('./lib/node-manager')
 
 class Rehoster extends ReadyResource {
-  constructor (corestore, swarmManager, bee) {
+  constructor (corestore, swarmManager, bee, { shouldRehost = alwaysRehost } = {}) {
     super()
 
     this.swarmManager = swarmManager
@@ -15,6 +15,7 @@ class Rehoster extends ReadyResource {
     this.nodeManager = new NodeManager(
       this.swarmManager,
       this.corestore, {
+        shouldRehost,
         onInvalidKey: ({ publicKey, invalidKey }) => {
           this.emit('invalid-key', { publicKey, invalidKey })
         },
@@ -172,6 +173,10 @@ class RehosterNodeInfo {
     this.publicKey = rehosterNode.pubKey
     this.coreLength = rehosterNode.core.length
   }
+}
+
+function alwaysRehost () {
+  return true
 }
 
 module.exports = Rehoster
