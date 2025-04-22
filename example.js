@@ -1,10 +1,10 @@
-const Corestore = require('corestore')
+const Corestore = require('spacecorestore')
 const ram = require('random-access-memory')
 const { asHex } = require('hexkey-utils')
 const SwarmManager = require('swarm-manager')
-const Hyperswarm = require('hyperswarm')
-const createTestnet = require('hyperdht/testnet')
-const Hyperbee = require('hyperbee')
+const Spaceswarm = require('spaceswarm')
+const createTestnet = require('spacedht/testnet')
+const Spacebee = require('spacebee')
 
 const Rehoster = require('./index.js')
 
@@ -15,7 +15,7 @@ async function main () {
   const bootstrap = testnet.bootstrap
 
   const corestore = new Corestore(corestoreLoc)
-  const rehoster = getRehoster(corestore, new Hyperswarm({ bootstrap }))
+  const rehoster = getRehoster(corestore, new Spaceswarm({ bootstrap }))
   await rehoster.ready()
 
   const someCore = corestore.get({ name: 'mycore' })
@@ -29,7 +29,7 @@ async function main () {
   console.log('\nIf you add the key of another rehoster, then it will recursively serve all it rehosts too')
 
   const corestore2 = new Corestore(ram)
-  const rerehoster = getRehoster(corestore2, new Hyperswarm({ bootstrap }))
+  const rerehoster = getRehoster(corestore2, new Spaceswarm({ bootstrap }))
 
   // This ensures the other rehoster already flushed its topics to the swarm
   // In practice you don't need to worry about this, it just helps solve a race condition
@@ -46,7 +46,7 @@ async function main () {
   console.log('rerehoster served discovery keys:')
   console.log(rerehoster.swarmManager.servedKeys.map(k => asHex(k))) // 3 keys: its own, the rehoster's and what that one hosts
 
-  console.log('\nThe rehoster downloads any new blocks added to the hypercore')
+  console.log('\nThe rehoster downloads any new blocks added to the spacecore')
   someCore.on('append', () => console.log('Appended to local core--new length:', someCore.length))
 
   const readcore = corestore2.get({ key: someCore.key })
@@ -85,7 +85,7 @@ function getRehoster (store, swarm) {
   return new Rehoster(
     namespace,
     swarmManager,
-    new Hyperbee(namespace.get({ name: 'bee' }))
+    new Spacebee(namespace.get({ name: 'bee' }))
   )
 }
 

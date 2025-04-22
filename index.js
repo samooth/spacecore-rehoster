@@ -1,5 +1,5 @@
 const ReadyResource = require('ready-resource')
-const idEnc = require('hypercore-id-encoding')
+const idEnc = require('spacecore-id-encoding')
 const RehosterDb = require('./db')
 const NodeManager = require('./lib/node-manager')
 

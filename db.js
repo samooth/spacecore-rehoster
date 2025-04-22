@@ -1,4 +1,4 @@
-const idEnc = require('hypercore-id-encoding')
+const idEnc = require('spacecore-id-encoding')
 const safetyCatch = require('safety-catch')
 
 const { REHOSTER_ENCODINGS } = require('./lib/encodings')

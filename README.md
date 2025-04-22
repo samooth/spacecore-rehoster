@@ -1,8 +1,8 @@
-# Hypercore Rehoster
+# Spacecore Rehoster
 
-Help host the hypercores of your choice.
+Help host the spacecores of your choice.
 
-For a hypercore containing a hyperdrive, both underlying cores will be served.
+For a spacecore containing a spacedrive, both underlying cores will be served.
 
 If you rehost another rehoster, you will rehost all its cores as well (recursively).
 
@@ -13,13 +13,13 @@ The rehoster automatically keeps the cores it hosts up to date, by continuously 
 The rehoster is recursive: if you rehost the key of another rehoster, you will automatically
 also rehost all the cores contained in that rehoster (and if those also contain rehoster keys, you will host their cores as well, recursively).
 
-Any Hyperbee can become a rehoster, by adding keys to the correct sub. See the Usage section.
+Any Spacebee can become a rehoster, by adding keys to the correct sub. See the Usage section.
 
 Rehosters can host one other, in which case they will host the union of all their individual cores.
 
 ## Install
 
-`npm i hypercore-rehoster`
+`npm i spacecore-rehoster`
 
 ## API
 
@@ -33,11 +33,11 @@ Note: to be able to add/delete cores, the corestore should have write rights on 
 
 ### `rehoster.ownKey`
 
-The public key of the rehoster's Hyperbee.
+The public key of the rehoster's Spacebee.
 
 ### `rehoster.ownDiscoveryKey`
 
-The discovery key of the rehoster's Hyperbee.
+The discovery key of the rehoster's Spacebee.
 
 ### `await rehoster.ready()`
 Set up the the rehoster, so it starts downloading and serving all the keys it contains.
@@ -161,12 +161,12 @@ Emitted every time a node's underlying core has been fully downloaded.
 
 #### `rehoster.on('invalid-key', { publicKey, invalidKey })`
 
-Emitted whenever the rehoster encounters an invalid key (that cannot refer to a Hypercore).
+Emitted whenever the rehoster encounters an invalid key (that cannot refer to a Spacecore).
 
 Invalid keys are skipped.
 
-- `publicKey` the public key of the hyperbee containing the entry
-- `invalidKey` the key of the hyperbee entry that is invalid
+- `publicKey` the public key of the spacebee containing the entry
+- `invalidKey` the key of the spacebee entry that is invalid
 
 #### `rehoster.on('invalid-value', { publicKey, rawEntry, error })`
 
@@ -174,22 +174,22 @@ Emitted whenever the rehoster encounters an invalid entry. For example if the en
 
 Entries with invalid values are skipped.
 
-- `publicKey` is the public key of the Hyperbee containing the invalid value.
+- `publicKey` is the public key of the Spacebee containing the invalid value.
 - `error` is the error object thrown when trying to decode the value.
-- `rawEntry` is the raw hyperbee entry (without decoding it).
+- `rawEntry` is the raw spacebee entry (without decoding it).
 
 ## Usage
 
 See [example.js](example.js) for the basic usage.
 
-To make an existing Hyperbee behave as a rehoster, you should use the RehosterDb manager. Pass it a Hyperbee, and it will add Rehoster entries to a sub dedicated to rehosting.
+To make an existing Spacebee behave as a rehoster, you should use the RehosterDb manager. Pass it a Spacebee, and it will add Rehoster entries to a sub dedicated to rehosting.
 
-Do note that this approach works best if you are using a [sub-encoder](https://github.com/holepunchto/sub-encoder/) pattern for the Hyperbee.
+Do note that this approach works best if you are using a [sub-encoder](https://github.com/holepunchto/sub-encoder/) pattern for the Spacebee.
 
 ```
-const RehosterDb = require('hypercore-rehoster/db')
+const RehosterDb = require('spacecore-rehoster/db')
 const Corestore = require('corestore')
-const Hyperbee = require('hyperbee')
+const Spacebee = require('spacebee')
 
 async function main () {
   const store = new Corestore('./quick-test')
@@ -197,7 +197,7 @@ async function main () {
   const someCore = store.get({ name: 'some-core' })
   await someCore.append('block 0')
 
-  const bee = new Hyperbee(store.get({ name: 'bee' }))
+  const bee = new Spacebee(store.get({ name: 'bee' }))
   const rehosterDb = new RehosterDb(bee)
   await rehosterDb.add(someCore.key, { description: 'illustrative core' })
   // The core will now be rehosted whenever the bee is

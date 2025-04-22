@@ -2,18 +2,18 @@ const path = require('path')
 const { spawn } = require('child_process')
 const { once } = require('events')
 const test = require('brittle')
-const createTestnet = require('hyperdht/testnet')
-const Corestore = require('corestore')
+const createTestnet = require('spacedht/testnet')
+const Corestore = require('spacecorestore')
 const RAM = require('random-access-memory')
-const SwarmManager = require('swarm-manager')
-const Hyperswarm = require('hyperswarm')
-const { discoveryKey } = require('hypercore-crypto')
-const idEnc = require('hypercore-id-encoding')
+const SwarmManager = require('spaceswarm-manager')
+const Spaceswarm = require('spaceswarm')
+const { discoveryKey } = require('spacecore-crypto')
+const idEnc = require('spacecore-id-encoding')
 const b4a = require('b4a')
 const Rehoster = require('../index')
 const { REHOSTER_SUB, CURRENT_VERSION, REHOSTER_ENCODINGS } = require('../lib/encodings')
-const Hyperdrive = require('hyperdrive')
-const Hyperbee = require('hyperbee')
+const Spacedrive = require('spacedrive')
+const Spacebee = require('spacebee')
 
 const DEBUG = false
 
@@ -737,7 +737,7 @@ test('respects custom shouldRehost', async (t) => {
 async function setupPeer (t, bootstrap) {
   const corestore = new Corestore(RAM)
 
-  const swarm = new Hyperswarm({ bootstrap })
+  const swarm = new Spaceswarm({ bootstrap })
   swarm.on('connection', (socket) => {
     corestore.replicate(socket)
   })
@@ -765,7 +765,7 @@ async function setupCore (t, bootstrap) {
 
 async function setupDrive (t, bootstrap) {
   const { swarm, corestore } = await setupPeer(t, bootstrap)
-  const drive = new Hyperdrive(corestore)
+  const drive = new Spacedrive(corestore)
   await drive.put('sup', 'here')
 
   swarm.join(drive.discoveryKey)
@@ -784,7 +784,7 @@ async function setupRehoster (t, bootstrap, opts = {}) {
   const { corestore, swarm } = await setupPeer(t, bootstrap)
 
   const swarmManager = new SwarmManager(swarm, corestore)
-  const bee = new Hyperbee(corestore.get({ name: 'bee' }))
+  const bee = new Spacebee(corestore.get({ name: 'bee' }))
 
   const rehoster = new Rehoster(corestore, swarmManager, bee, opts)
 

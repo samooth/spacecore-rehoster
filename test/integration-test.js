@@ -1,10 +1,10 @@
-const Hyperdrive = require('hyperdrive')
-const Hyperswarm = require('hyperswarm')
+const Spacedrive = require('spacedrive')
+const Spaceswarm = require('spaceswarm')
 const ram = require('random-access-memory')
-const Corestore = require('corestore')
-const Hyperbee = require('hyperbee')
+const Corestore = require('spacecorestore')
+const Spacebee = require('spacebee')
 const fs = require('fs/promises')
-const createTestnet = require('hyperdht/testnet')
+const createTestnet = require('spacedht/testnet')
 const safetyCatch = require('safety-catch')
 const { once } = require('events')
 const goodbye = require('graceful-goodbye')
@@ -25,7 +25,7 @@ const MS_WAIT = 5000
 const MS_WAIT_DOWNLOAD = 1000
 
 async function getDrive (store) {
-  const drive = new Hyperdrive(store)
+  const drive = new Spacedrive(store)
   await drive.put('./some', 'thing')
   return drive
 }
@@ -33,7 +33,7 @@ async function getDrive (store) {
 let bootstrap
 
 function getSwarm (store) {
-  const swarm = new Hyperswarm({ bootstrap })
+  const swarm = new Spaceswarm({ bootstrap })
   if (store) {
     swarm.on('connection', (conn) => {
       conn.on('end', () => { conn.end() })
@@ -68,7 +68,7 @@ function getRehoster (store) {
   return new Rehoster(
     store,
     new SwarmManager(getSwarm(store)),
-    new Hyperbee(store.get({ name: 'bee' }))
+    new Spacebee(store.get({ name: 'bee' }))
   )
 }
 
@@ -85,7 +85,7 @@ async function runIntegrationTest (testnet) {
   const peer2 = new SwarmManager(getSwarm(store2))
 
   const driveP2 = await getDrive(store2)
-  const beeP2 = new Hyperbee(store2.get({ name: 'beeP2' }))
+  const beeP2 = new Spacebee(store2.get({ name: 'beeP2' }))
   await beeP2.put('some', 'entry')
 
   // 1) *******************************************************************
@@ -111,7 +111,7 @@ async function runIntegrationTest (testnet) {
   // 2) ********************************************************************
   console.log('2) Peer1 disappears--someone requests drive1 and drive2')
   await peer1.close()
-  await store1.close() // Not managed by hyperswarm--refactor?
+  await store1.close() // Not managed by spaceswarm--refactor?
   await reh1.swarm.flush()
 
   if (await canDownloadCore(driveP1.key)) {
@@ -183,7 +183,7 @@ async function runIntegrationTest (testnet) {
   peer2.serve(beeP2.feed.discoveryKey)
   peer2.serve(driveP2.discoveryKey)
 
-  const reopenedDriveP1 = new Hyperdrive(peer1RenStore)
+  const reopenedDriveP1 = new Spacedrive(peer1RenStore)
   await reopenedDriveP1.ready()
   if (!reopenedDriveP1.core.length > 0) throw new Error('Incorrect drive?')
 
@@ -336,7 +336,7 @@ async function canDownloadCore (pubKey, timeout = MS_WAIT) {
 
 async function getDriveEntry (pubKey, location) {
   const { mgr, store } = getRandomPeer()
-  const drive = new Hyperdrive(store, pubKey)
+  const drive = new Spacedrive(store, pubKey)
   await drive.ready()
   const connected = once(mgr.swarm, 'connection')
   const ready = once(drive.core, 'append')
