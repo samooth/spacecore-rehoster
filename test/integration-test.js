@@ -10,7 +10,7 @@ const { once } = require('events')
 const goodbye = require('graceful-goodbye')
 
 const Rehoster = require('..')
-const SwarmManager = require('swarm-manager')
+const SwarmManager = require('spaceswarm-manager')
 
 const DIR = 'test-stores/'
 

@@ -1,7 +1,7 @@
 const Corestore = require('spacecorestore')
 const ram = require('random-access-memory')
 const { asHex } = require('hexkey-utils')
-const SwarmManager = require('swarm-manager')
+const SwarmManager = require('spaceswarm-manager')
 const Spaceswarm = require('spaceswarm')
 const createTestnet = require('spacedht/testnet')
 const Spacebee = require('spacebee')

@@ -188,7 +188,7 @@ Do note that this approach works best if you are using a [sub-encoder](https://g
 
 ```
 const RehosterDb = require('spacecore-rehoster/db')
-const Corestore = require('corestore')
+const Corestore = require('spacecorestore')
 const Spacebee = require('spacebee')
 
 async function main () {

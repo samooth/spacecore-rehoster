@@ -31,7 +31,7 @@
   ],  
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://gitlab.com/samooth/spacecore-rehoster/issues"
+    "url": "https://github.com/samooth/spacecore-rehoster/issues"
   },
   "devDependencies": {
     "brittle": "^3.6.1",
